@@ -293,12 +293,14 @@ function App() {
                     labels: numericColumns,
                     datasets: [{
                         label: '수치형 변수 분포',
-                        backgroundColor: 'rgba(99, 102, 241, 0.5)',
-                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.5)', // 박스 안쪽 색상 (Indigo)
+                        borderColor: '#6366f1',                     // 박스 테두리
                         borderWidth: 1.5,
                         itemBackgroundColor: '#fff',
-                        // 이상치(outliers) 점들을 그리지 않도록 설정
-                        outlierRadius: 0, 
+                        // 극단적인 데이터(이상치)를 뚜렷한 빨간색 동그라미로 표현
+                        outlierBackgroundColor: '#ef4444',          // 이상치 내부 색상 (Red)
+                        outlierBorderColor: '#dc2626',              // 이상치 테두리 (Dark Red)
+                        outlierRadius: 4,                           // 이상치 동그라미 크기
                         data: boxplotData
                     }]
                 },
