@@ -36,8 +36,31 @@ function App() {
     const [zoomLevel, setZoomLevel] = useState(100); // 줌 배율 관리 (초기값 100%)
 
     const chartRef = useRef(null);
+    const boxplotContainerRef = useRef(null);
     const correlationRef = useRef(null);
 
+    const downloadBoxplotImage = async () => {
+        if (!boxplotContainerRef.current) return;
+        try {
+            const originalZoom = boxplotContainerRef.current.style.zoom;
+            boxplotContainerRef.current.style.zoom = '100%'; 
+            
+            const canvas = await html2canvas(boxplotContainerRef.current, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            });
+            
+            boxplotContainerRef.current.style.zoom = originalZoom;
+            const link = document.createElement('a');
+            link.download = `boxplot_${fileName ? fileName.split('.')[0] : 'data'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error("이미지 다운로드 중 오류 발생:", error);
+            alert("이미지 다운로드에 실패했습니다.");
+        }
     const downloadCorrelationImage = async () => {
         if (!correlationRef.current) return;
         
@@ -271,8 +294,9 @@ function App() {
                         backgroundColor: 'rgba(99, 102, 241, 0.5)',
                         borderColor: '#6366f1',
                         borderWidth: 1.5,
-                        outlierBackgroundColor: '#ef4444',
                         itemBackgroundColor: '#fff',
+                        // 이상치(outliers) 점들을 그리지 않도록 설정
+                        outlierRadius: 0, 
                         data: boxplotData
                     }]
                 },
@@ -389,8 +413,49 @@ function App() {
 
                     {/* 박스 플롯 영역 */}
                     {showBoxPlot && (
-                        <div className="chart-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', height: '400px', display: 'flex', justifyContent: 'center', animation: 'fadeIn 0.5s' }}>
-                            <canvas ref={chartRef}></canvas>
+                        <div className="chart-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', animation: 'fadeIn 0.5s' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: '8px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <BarChart size={20} /> 수치형 변수 박스플롯 (Box Plot)
+                                    </h3>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>각 박스는 아래쪽부터 최소값, 1사분위(Q1), 중앙값(가운데 선), 3사분위(Q3), 최대값을 의미합니다.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.5)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                                        <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>크기 조절: {zoomLevel}%</span>
+                                        <input
+                                            type="range"
+                                            min="20"
+                                            max="150"
+                                            value={zoomLevel}
+                                            onChange={(e) => setZoomLevel(e.target.value)}
+                                            style={{ width: '120px', cursor: 'grab' }}
+                                        />
+                                        <button
+                                            className="btn-reset"
+                                            style={{ background: '#f1f5f9', color: 'var(--text-muted)', padding: '6px 12px', border: '1px solid rgba(100, 116, 139, 0.2)', fontSize: '0.8rem' }}
+                                            onClick={() => setZoomLevel(100)}
+                                        >
+                                            원래대로
+                                        </button>
+                                    </div>
+                                    <button
+                                        className="btn-reset"
+                                        style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary-color)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
+                                        onClick={downloadBoxplotImage}
+                                    >
+                                        <Download size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                        차트 이미지 다운로드
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div ref={boxplotContainerRef} style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', zoom: `${zoomLevel}%` }}>
+                                <div style={{ height: '500px', display: 'flex', justifyContent: 'center' }}>
+                                    <canvas ref={chartRef}></canvas>
+                                </div>
+                            </div>
                         </div>
                     )}
 
