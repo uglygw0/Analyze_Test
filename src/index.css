@@ -251,6 +251,18 @@ body {
     margin-top: 24px;
 }
 
+/* 상관계수용 폭이 좁은 콤팩트 테이블 */
+.analysis-table.compact-matrix th,
+.analysis-table.compact-matrix td {
+    padding: 6px 8px; /* 패딩을 대폭 줄여서 한눈에 보이게 함 */
+    font-size: 0.75rem; /* 글씨 크기 축소 */
+    min-width: 40px; 
+}
+.analysis-table.compact-matrix th {
+    font-size: 0.8rem;
+}
+
+
 .analysis-table {
     width: 100%;
     border-collapse: separate;

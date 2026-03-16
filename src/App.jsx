@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { UploadCloud, FileSpreadsheet, RefreshCw, AlertTriangle, BarChart, X, Activity } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, RefreshCw, AlertTriangle, BarChart, X, Activity, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import {
     calculateMean,
     calculateMedian,
@@ -32,8 +33,42 @@ function App() {
     // UI 토글 상태
     const [showBoxPlot, setShowBoxPlot] = useState(false);
     const [showCorrelation, setShowCorrelation] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(100); // 줌 배율 관리 (초기값 100%)
 
     const chartRef = useRef(null);
+    const correlationRef = useRef(null);
+
+    const downloadCorrelationImage = async () => {
+        if (!correlationRef.current) return;
+        
+        try {
+            // 버튼들 텍스트를 임시로 살짝 변경하여 사용자에게 진행상태 피드백 고려가능
+            // 혹은 transform scale/zoom 되어있는 상태라면 제대로 캡처가 안될 수 있으므로, 임시로 원래 크기로 복구하고 캡쳐 후 원복하는 로직 필요
+            const originalTransform = correlationRef.current.style.transform;
+            const originalZoom = correlationRef.current.style.zoom;
+            
+            correlationRef.current.style.transform = 'none';
+            correlationRef.current.style.zoom = '100%'; // 다운로드 시에는 고화질을 위해 무조건 100% 배율로 복원
+
+            const canvas = await html2canvas(correlationRef.current, {
+                backgroundColor: '#ffffff', // 이미지화할때 뒷배경 투명 방지
+                scale: 2,                   // 고해상도 처리를 위해 2배 스케일
+                logging: false,
+                useCORS: true               // 혹시 모를 외부 에셋 처리
+            });
+            
+            correlationRef.current.style.transform = originalTransform;
+            correlationRef.current.style.zoom = originalZoom;
+
+            const link = document.createElement('a');
+            link.download = `correlation_matrix_${fileName ? fileName.split('.')[0] : 'data'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error("이미지 다운로드 중 오류 발생:", error);
+            alert("이미지 다운로드에 실패했습니다. 관리자 툴이나 F12 개발자 모드 콘솔을 확인해주세요.");
+        }
+    };
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -310,6 +345,17 @@ function App() {
                         </div>
 
                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                            {showCorrelation && (
+                                <button
+                                    className="btn-reset"
+                                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary-color)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
+                                    onClick={downloadCorrelationImage}
+                                >
+                                    <Download size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                    행렬 이미지 다운로드
+                                </button>
+                            )}
+
                             <button
                                 className="btn-reset"
                                 style={{ background: showCorrelation ? 'rgba(236, 72, 153, 0.4)' : 'rgba(236, 72, 153, 0.15)', color: '#f472b6', border: '1px solid rgba(236, 72, 153, 0.3)' }}
@@ -350,50 +396,74 @@ function App() {
 
                     {/* 상관계수 플롯(행렬) 영역 */}
                     {showCorrelation && (
-                        <div className="correlation-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', overflowX: 'auto', animation: 'fadeIn 0.5s' }}>
-                            <h3 style={{ marginBottom: '16px', color: '#f472b6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={20} /> 수치형 변수간 피어슨 상관계수 (Pearson Correlation)
-                            </h3>
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>1에 가까울수록 양의 상관관계(파랑), -1에 가까울수록 음의 상관관계(빨강)를 의미합니다.</p>
+                        <div className="correlation-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--card-border)', overflowX: 'auto', animation: 'fadeIn 0.5s' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: '8px', color: '#f472b6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Activity size={20} /> 수치형 변수간 피어슨 상관계수 (Pearson Correlation)
+                                    </h3>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>1에 가까울수록 양의 상관관계(파랑), -1에 가까울수록 음의 상관관계(빨강)를 의미합니다.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.5)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>크기 조절: {zoomLevel}%</span>
+                                    <input
+                                        type="range"
+                                        min="20"
+                                        max="150"
+                                        value={zoomLevel}
+                                        onChange={(e) => setZoomLevel(e.target.value)}
+                                        style={{ width: '120px', cursor: 'grab' }}
+                                    />
+                                    <button
+                                        className="btn-reset"
+                                        style={{ background: '#f1f5f9', color: 'var(--text-muted)', padding: '6px 12px', border: '1px solid rgba(100, 116, 139, 0.2)', fontSize: '0.8rem' }}
+                                        onClick={() => setZoomLevel(100)}
+                                    >
+                                        원래대로
+                                    </button>
+                                </div>
+                            </div>
 
-                            {numericColumns.length < 2 ? (
-                                <p style={{ color: '#fca5a5' }}>상관관계를 분석하기 위해서는 수치형 변수가 2개 이상 필요합니다.</p>
-                            ) : (
-                                <table className="analysis-table" style={{ width: 'max-content', minWidth: '100%' }}>
-                                    <thead>
-                                        <tr>
-                                            <th>변수명</th>
-                                            {numericColumns.map(col => <th key={col} style={{ textAlign: 'center' }}>{col}</th>)}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {numericColumns.map((rowCol, i) => (
-                                            <tr key={rowCol}>
-                                                <th style={{ background: 'rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>{rowCol}</th>
-                                                {numericColumns.map((col, j) => {
-                                                    const val = correlationMatrix[i][j];
-                                                    const bgColor = getCorrelationColor(val);
-                                                    return (
-                                                        <td
-                                                            key={col}
-                                                            style={{
-                                                                background: bgColor,
-                                                                textAlign: 'center',
-                                                                fontWeight: i === j ? 'bold' : 'normal',
-                                                                color: (val !== null && Math.abs(val) > 0.5) ? '#fff' : 'var(--text-light)',
-                                                                border: '1px solid rgba(255,255,255,0.05)'
-                                                            }}
-                                                            title={`${rowCol} ↔ ${col}`}
-                                                        >
-                                                            {val !== null ? val.toFixed(2) : '-'}
-                                                        </td>
-                                                    );
-                                                })}
+                            <div ref={correlationRef} style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', minWidth: 'max-content', zoom: `${zoomLevel}%` }}>
+                                {numericColumns.length < 2 ? (
+                                    <p style={{ color: '#fca5a5' }}>상관관계를 분석하기 위해서는 수치형 변수가 2개 이상 필요합니다.</p>
+                                ) : (
+                                    <table className="analysis-table compact-matrix" style={{ width: 'max-content', minWidth: '100%' }}>
+                                        <thead>
+                                            <tr>
+                                                <th>변수명</th>
+                                                {numericColumns.map(col => <th key={col} style={{ textAlign: 'center' }}>{col}</th>)}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
+                                        </thead>
+                                        <tbody>
+                                            {numericColumns.map((rowCol, i) => (
+                                                <tr key={rowCol}>
+                                                    <th style={{ background: 'rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>{rowCol}</th>
+                                                    {numericColumns.map((col, j) => {
+                                                        const val = correlationMatrix[i][j];
+                                                        const bgColor = getCorrelationColor(val);
+                                                        return (
+                                                            <td
+                                                                key={col}
+                                                                style={{
+                                                                    background: bgColor,
+                                                                    textAlign: 'center',
+                                                                    fontWeight: i === j ? 'bold' : 'normal',
+                                                                    color: (val !== null && Math.abs(val) > 0.5) ? '#fff' : 'var(--text-light)',
+                                                                    border: '1px solid rgba(255,255,255,0.05)'
+                                                                }}
+                                                                title={`${rowCol} ↔ ${col}`}
+                                                            >
+                                                                {val !== null ? val.toFixed(2) : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
                         </div>
                     )}
 
