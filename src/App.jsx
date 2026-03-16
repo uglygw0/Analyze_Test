@@ -307,7 +307,7 @@ function App() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            labels: { color: '#f8fafc' }
+                            display: false // 붕 떠있는 불필요한 범례(네모 상자) 숨김
                         },
                         tooltip: {
                             callbacks: {
@@ -321,12 +321,15 @@ function App() {
                     },
                     scales: {
                         x: {
-                            ticks: { color: '#f8fafc' },
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            ticks: { 
+                                color: '#334155', // 밝은 모드 배경에 맞게 라벨이 보이도록 어두운 색으로 수정
+                                font: { size: 12, weight: 'bold' } // 박스 밑의 이름을 명확하게
+                            },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' } // 그리드 라인도 밝은 테마에 맞춤
                         },
                         y: {
-                            ticks: { color: '#f8fafc' },
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            ticks: { color: '#334155' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
                         }
                     }
                 }
