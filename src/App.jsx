@@ -61,6 +61,8 @@ function App() {
             console.error("이미지 다운로드 중 오류 발생:", error);
             alert("이미지 다운로드에 실패했습니다.");
         }
+    };
+
     const downloadCorrelationImage = async () => {
         if (!correlationRef.current) return;
         
