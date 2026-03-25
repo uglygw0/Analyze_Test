@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"npm run autosave\"",
+    "autosave": "nodemon --watch src --ext js,jsx,css --delay 2 --exec \"git add . && git commit -m 'Auto-save' && git push || true\"",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -24,6 +25,8 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.14",
     "vite": "^5.0.8"
   }
 }
