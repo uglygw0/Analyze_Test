@@ -15,11 +15,11 @@ import {
 } from './utils/stats';
 import { sampleCorrelation } from 'simple-statistics';
 
-import { Chart as ChartJS, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, Tooltip, Legend, ScatterController, PointElement } from 'chart.js';
 import { BoxPlotController, BoxAndWiskers } from '@sgratzl/chartjs-chart-boxplot';
 
 // Chart.js 모듈 등록
-ChartJS.register(CategoryScale, LinearScale, BoxPlotController, BoxAndWiskers, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BoxPlotController, BoxAndWiskers, Tooltip, Legend, ScatterController, PointElement);
 
 function App() {
     const [data, setData] = useState(null);
@@ -32,12 +32,18 @@ function App() {
     const [outlierModalState, setOutlierModalState] = useState({ isOpen: false, colName: '', outliers: [] });
     // UI 토글 상태
     const [showBoxPlot, setShowBoxPlot] = useState(false);
+    const [boxPlotType, setBoxPlotType] = useState('none'); // 'none', 'z-score', 'mean-centering'
     const [showCorrelation, setShowCorrelation] = useState(false);
+    const [showScatter, setShowScatter] = useState(false);
+    const [scatterVar1, setScatterVar1] = useState('');
+    const [scatterVar2, setScatterVar2] = useState('');
     const [zoomLevel, setZoomLevel] = useState(100); // 줌 배율 관리 (초기값 100%)
 
     const chartRef = useRef(null);
+    const scatterChartRef = useRef(null); // 산점도용 차트 ref
     const boxplotContainerRef = useRef(null);
     const correlationRef = useRef(null);
+    const scatterContainerRef = useRef(null);
 
     const downloadBoxplotImage = async () => {
         if (!boxplotContainerRef.current) return;
@@ -92,6 +98,36 @@ function App() {
         } catch (error) {
             console.error("이미지 다운로드 중 오류 발생:", error);
             alert("이미지 다운로드에 실패했습니다. 관리자 툴이나 F12 개발자 모드 콘솔을 확인해주세요.");
+        }
+    };
+
+    const downloadScatterImage = async () => {
+        if (!scatterContainerRef.current) return;
+        
+        try {
+            const originalTransform = scatterContainerRef.current.style.transform;
+            const originalZoom = scatterContainerRef.current.style.zoom;
+            
+            scatterContainerRef.current.style.transform = 'none';
+            scatterContainerRef.current.style.zoom = '100%';
+
+            const canvas = await html2canvas(scatterContainerRef.current, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            });
+            
+            scatterContainerRef.current.style.transform = originalTransform;
+            scatterContainerRef.current.style.zoom = originalZoom;
+
+            const link = document.createElement('a');
+            link.download = `scatterplot_${fileName ? fileName.split('.')[0] : 'data'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error("이미지 다운로드 중 오류 발생:", error);
+            alert("이미지 다운로드에 실패했습니다.");
         }
     };
 
@@ -192,6 +228,9 @@ function App() {
         setResults({});
         setShowBoxPlot(false);
         setShowCorrelation(false);
+        setShowScatter(false);
+        setScatterVar1('');
+        setScatterVar2('');
     };
 
     const handleDragOver = (e) => {
@@ -284,7 +323,29 @@ function App() {
                 chartRef.current.chartInstance.destroy();
             }
 
-            const boxplotData = numericColumns.map(col => results[col].rawData);
+            const boxplotData = numericColumns.map(col => {
+                const res = results[col];
+                let rawData = [...res.rawData];
+                
+                if (boxPlotType === 'z-score') {
+                    const mean = res.mean;
+                    const stdDev = res.stdDev;
+                    if (stdDev && stdDev !== 0) {
+                        rawData = rawData.map(v => (v - mean) / stdDev);
+                    }
+                } else if (boxPlotType === 'mean-centering') {
+                    const mean = res.mean;
+                    if (mean !== null && mean !== undefined) {
+                        rawData = rawData.map(v => v - mean);
+                    }
+                }
+                
+                return rawData;
+            });
+
+            let chartTitle = '수치형 변수 분포';
+            if (boxPlotType === 'z-score') chartTitle = '수치형 변수 분포 (Z-Score 표준화)';
+            if (boxPlotType === 'mean-centering') chartTitle = '수치형 변수 분포 (Mean Centering)';
 
             const ctx = chartRef.current.getContext('2d');
             const newChart = new ChartJS(ctx, {
@@ -292,7 +353,7 @@ function App() {
                 data: {
                     labels: numericColumns,
                     datasets: [{
-                        label: '수치형 변수 분포',
+                        label: chartTitle,
                         backgroundColor: 'rgba(99, 102, 241, 0.5)', // 박스 안쪽 색상 (Indigo)
                         borderColor: '#6366f1',                     // 박스 테두리
                         borderWidth: 1.5,
@@ -316,7 +377,8 @@ function App() {
                                 label: (context) => {
                                     const label = context.dataset.label || '';
                                     const raw = context.raw;
-                                    return `${label} - 최소값:${raw.min}, Q1:${raw.q1}, 중앙값:${raw.median}, Q3:${raw.q3}, 최대값:${raw.max}`;
+                                    const formatNum = (num) => typeof num === 'number' ? num.toFixed(2) : num;
+                                    return `${label} - 최소값:${formatNum(raw.min)}, Q1:${formatNum(raw.q1)}, 중앙값:${formatNum(raw.median)}, Q3:${formatNum(raw.q3)}, 최대값:${formatNum(raw.max)}`;
                                 }
                             }
                         }
@@ -338,7 +400,81 @@ function App() {
             });
             chartRef.current.chartInstance = newChart;
         }
-    }, [showBoxPlot, columns, results, data, numericColumns]);
+    }, [showBoxPlot, boxPlotType, columns, results, data, numericColumns]);
+
+    // Scatter 차트 렌더링을 위한 Effect
+    useEffect(() => {
+        if (showScatter && scatterVar1 && scatterVar2 && scatterChartRef.current && data) {
+            if (scatterChartRef.current.chartInstance) {
+                scatterChartRef.current.chartInstance.destroy();
+            }
+
+            const scatterData = [];
+            data.forEach(item => {
+                const val1 = Number(item[scatterVar1]);
+                const val2 = Number(item[scatterVar2]);
+                if (!isNaN(val1) && !isNaN(val2)) {
+                    scatterData.push({ x: val1, y: val2 });
+                }
+            });
+
+            const ctx = scatterChartRef.current.getContext('2d');
+            const newScatterChart = new ChartJS(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: `${scatterVar1} vs ${scatterVar2}`,
+                        data: scatterData,
+                        backgroundColor: 'rgba(236, 72, 153, 0.6)',
+                        borderColor: '#f472b6',
+                        borderWidth: 1,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1, // 정사각형 비율 유지
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: scatterVar1,
+                                color: '#334155',
+                                font: { size: 14, weight: 'bold' }
+                            },
+                            ticks: { color: '#334155' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: scatterVar2,
+                                color: '#334155',
+                                font: { size: 14, weight: 'bold' }
+                            },
+                            ticks: { color: '#334155' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `(${context.raw.x.toFixed(2)}, ${context.raw.y.toFixed(2)})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            scatterChartRef.current.chartInstance = newScatterChart;
+        }
+    }, [showScatter, scatterVar1, scatterVar2, data]);
 
     return (
         <div className="container">
@@ -426,7 +562,30 @@ function App() {
                                     <h3 style={{ marginBottom: '8px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <BarChart size={20} /> 수치형 변수 박스플롯 (Box Plot)
                                     </h3>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>각 박스는 아래쪽부터 최소값, 1사분위(Q1), 중앙값(가운데 선), 3사분위(Q3), 최대값을 의미합니다.</p>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>각 박스는 아래쪽부터 최소값, 1사분위(Q1), 중앙값(가운데 선), 3사분위(Q3), 최대값을 의미합니다.</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <button
+                                            className="btn-reset"
+                                            style={{ background: boxPlotType === 'none' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'none' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
+                                            onClick={() => setBoxPlotType('none')}
+                                        >
+                                            기본 (Original)
+                                        </button>
+                                        <button
+                                            className="btn-reset"
+                                            style={{ background: boxPlotType === 'z-score' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'z-score' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
+                                            onClick={() => setBoxPlotType('z-score')}
+                                        >
+                                            Z-Score 표준화
+                                        </button>
+                                        <button
+                                            className="btn-reset"
+                                            style={{ background: boxPlotType === 'mean-centering' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'mean-centering' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
+                                            onClick={() => setBoxPlotType('mean-centering')}
+                                        >
+                                            Mean Centering 표준화
+                                        </button>
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.5)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
@@ -536,6 +695,62 @@ function App() {
                                     </table>
                                 )}
                             </div>
+
+                            {/* 산점도 영역 기능 */}
+                            {numericColumns.length >= 2 && (
+                                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ marginBottom: '12px', color: '#f472b6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        산점도 (Scatter Plot) 시각화
+                                    </h4>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                                        <select 
+                                            value={scatterVar1} 
+                                            onChange={(e) => setScatterVar1(e.target.value)}
+                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                                        >
+                                            <option value="">변수 1 (X축) 선택</option>
+                                            {numericColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                        <span style={{ color: '#64748b' }}>vs</span>
+                                        <select 
+                                            value={scatterVar2} 
+                                            onChange={(e) => setScatterVar2(e.target.value)}
+                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                                        >
+                                            <option value="">변수 2 (Y축) 선택</option>
+                                            {numericColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                        <button 
+                                            className="btn-reset"
+                                            style={{ background: '#f472b6', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer', opacity: (!scatterVar1 || !scatterVar2) ? 0.5 : 1 }}
+                                            disabled={!scatterVar1 || !scatterVar2}
+                                            onClick={() => setShowScatter(true)}
+                                        >
+                                            산점도 확인
+                                        </button>
+                                    </div>
+                                    
+                                    {showScatter && scatterVar1 && scatterVar2 && (
+                                        <div style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                                                <button
+                                                    className="btn-reset"
+                                                    style={{ background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.2)', padding: '6px 12px', fontSize: '0.85rem' }}
+                                                    onClick={downloadScatterImage}
+                                                >
+                                                    <Download size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                                                    산점도 이미지 다운로드
+                                                </button>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <div ref={scatterContainerRef} style={{ width: '100%', maxWidth: '600px', background: '#ffffff', padding: '24px', borderRadius: '12px', zoom: `${zoomLevel}%` }}>
+                                                    <canvas ref={scatterChartRef}></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
