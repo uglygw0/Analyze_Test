@@ -336,8 +336,51 @@ function MultipleRegressionAnalysis({ data, numCols }) {
     if (x.length > 0) {
       try {
         const regression = new MultivariateLinearRegression(x, y);
-        // Calculate mock R2 for display
-        setModel({ weights: regression.weights, xVars });
+        
+        // Calculate Actual vs Predicted & R2
+        const actualVsPredicted = [];
+        let ssTotal = 0;
+        let ssRes = 0;
+        const yMean = y.reduce((a, b) => a + b[0], 0) / y.length;
+        let minY = Infinity, maxY = -Infinity;
+
+        x.forEach((xRow, i) => {
+          const actualY = y[i][0];
+          const predictedY = regression.predict(xRow)[0];
+          actualVsPredicted.push({ x: actualY, y: predictedY });
+          
+          ssTotal += Math.pow(actualY - yMean, 2);
+          ssRes += Math.pow(actualY - predictedY, 2);
+          
+          if (actualY < minY) minY = actualY;
+          if (actualY > maxY) maxY = actualY;
+        });
+
+        const r2 = ssTotal === 0 ? 0 : 1 - (ssRes / ssTotal);
+
+        // Calculate Variable Impact (Standardized Coefficients proxy = Coef * StdDev)
+        const impacts = [];
+        xVars.forEach((col, idx) => {
+          const vals = x.map(r => r[idx]);
+          const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+          const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+          const stdDev = Math.sqrt(variance);
+          const coef = regression.weights[idx + 1][0]; // weights[0] is intercept
+          impacts.push({ col, impact: Math.abs(coef * stdDev), rawCoef: coef });
+        });
+
+        // Sort by impact
+        impacts.sort((a, b) => b.impact - a.impact);
+
+        setModel({ 
+          weights: regression.weights, 
+          xVars, 
+          actualVsPredicted,
+          r2,
+          impacts,
+          minY,
+          maxY
+        });
       } catch (e) {
         alert("다중 회귀분석 중 오류가 발생했습니다. 선형 대수 계산이 불가능한 데이터일 수 있습니다.");
       }
@@ -376,23 +419,67 @@ function MultipleRegressionAnalysis({ data, numCols }) {
 
       {model && (
         <div className="results-grid fade-in">
-          <div className="result-card full-width">
+          <div className="result-card">
             <div className="card-header">
-              <h3><BarChart2 size={20} /> 변수별 계수 (Coefficients)</h3>
+              <h3><TrendingUp size={20} /> 실제값 vs 예측값 (모델 적합도)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '300px' }}>
+              <Scatter 
+                options={{ 
+                  maintainAspectRatio: false,
+                  scales: { x: { title: { display: true, text: '실제값 (Actual)' } }, y: { title: { display: true, text: '예측값 (Predicted)' } } }
+                }}
+                data={{
+                  datasets: [
+                    {
+                      type: 'line',
+                      label: '완전 일치 선 (y=x)',
+                      data: [{ x: model.minY, y: model.minY }, { x: model.maxY, y: model.maxY }],
+                      borderColor: '#10b981',
+                      borderWidth: 2,
+                      borderDash: [5, 5],
+                      pointRadius: 0
+                    },
+                    {
+                      type: 'scatter',
+                      label: '데이터 포인트',
+                      data: model.actualVsPredicted,
+                      backgroundColor: 'rgba(99, 102, 241, 0.6)'
+                    }
+                  ]
+                }}
+              />
+            </div>
+            <div className="metrics-grid">
+              <div className="metric-box">
+                <div className="metric-label">설명력 (R²)</div>
+                <div className="metric-value">{model.r2.toFixed(4)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="result-card">
+            <div className="card-header">
+              <h3><BarChart2 size={20} /> 변수별 상대적 영향도 (Feature Impact)</h3>
             </div>
             <div className="chart-container" style={{ height: '300px' }}>
               <Bar 
-                options={{ maintainAspectRatio: false }}
+                options={{ maintainAspectRatio: false, indexAxis: 'y' }}
                 data={{
-                  labels: ['절편 (Intercept)', ...model.xVars],
+                  labels: model.impacts.map(i => i.col),
                   datasets: [{
-                    label: '회귀 계수',
-                    data: model.weights.map(w => w[0]),
-                    backgroundColor: model.weights.map(w => w[0] >= 0 ? 'rgba(99, 102, 241, 0.7)' : 'rgba(236, 72, 153, 0.7)'),
+                    label: '상대적 영향도',
+                    data: model.impacts.map(i => i.impact),
+                    backgroundColor: model.impacts.map(i => i.rawCoef >= 0 ? 'rgba(99, 102, 241, 0.7)' : 'rgba(236, 72, 153, 0.7)'),
                   }]
                 }}
               />
             </div>
+            <p style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              * 영향도는 표준화된 계수(회귀계수 × 변수의 표준편차)의 절댓값을 기준으로 정렬되며, 
+              <span style={{ color: '#4f46e5', fontWeight: 'bold' }}>파란색은 양(+)의 영향</span>, 
+              <span style={{ color: '#db2777', fontWeight: 'bold' }}>분홍색은 음(-)의 영향</span>을 의미합니다.
+            </p>
           </div>
         </div>
       )}
