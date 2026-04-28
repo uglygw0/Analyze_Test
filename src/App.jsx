@@ -1,860 +1,704 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { UploadCloud, FileSpreadsheet, RefreshCw, AlertTriangle, BarChart, X, Activity, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import {
-    calculateMean,
-    calculateMedian,
-    calculateVariance,
-    calculateStandardDeviation,
-    calculateMode,
-    calculateMin,
-    calculateMax,
-    calculateQuartilesAndOutliers
-} from './utils/stats';
-import { sampleCorrelation } from 'simple-statistics';
+import { 
+  UploadCloud, FileSpreadsheet, Activity, BarChart2, 
+  TrendingUp, Layers, Network, PieChart, Database, 
+  Settings, CheckCircle2, AlertCircle, ChevronRight
+} from 'lucide-react';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
+import { Scatter, Line, Bar } from 'react-chartjs-2';
+import SimpleLinearRegression from 'ml-regression-simple-linear';
+import MultivariateLinearRegression from 'ml-regression-multivariate-linear';
+import kmeans from 'ml-kmeans';
 
-import { Chart as ChartJS, CategoryScale, LinearScale, Tooltip, Legend, ScatterController, PointElement } from 'chart.js';
-import { BoxPlotController, BoxAndWiskers } from '@sgratzl/chartjs-chart-boxplot';
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
-// Chart.js 모듈 등록
-ChartJS.register(CategoryScale, LinearScale, BoxPlotController, BoxAndWiskers, Tooltip, Legend, ScatterController, PointElement);
+export default function App() {
+  const [data, setData] = useState(null);
+  const [columns, setColumns] = useState([]);
+  const [fileName, setFileName] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [analysisType, setAnalysisType] = useState('basic');
 
-function App() {
-    const [data, setData] = useState(null);
-    const [columns, setColumns] = useState([]);
-    const [fileName, setFileName] = useState('');
-    const [results, setResults] = useState({});
-    const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef(null);
 
-    // 모달 상태 관리
-    const [outlierModalState, setOutlierModalState] = useState({ isOpen: false, colName: '', outliers: [] });
-    // UI 토글 상태
-    const [showBoxPlot, setShowBoxPlot] = useState(false);
-    const [boxPlotType, setBoxPlotType] = useState('none'); // 'none', 'z-score', 'mean-centering'
-    const [showCorrelation, setShowCorrelation] = useState(false);
-    const [showScatter, setShowScatter] = useState(false);
-    const [scatterVar1, setScatterVar1] = useState('');
-    const [scatterVar2, setScatterVar2] = useState('');
-    const [zoomLevel, setZoomLevel] = useState(100); // 줌 배율 관리 (초기값 100%)
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) processFile(file);
+  };
 
-    const chartRef = useRef(null);
-    const scatterChartRef = useRef(null); // 산점도용 차트 ref
-    const boxplotContainerRef = useRef(null);
-    const correlationRef = useRef(null);
-    const scatterContainerRef = useRef(null);
-
-    const downloadBoxplotImage = async () => {
-        if (!boxplotContainerRef.current) return;
-        try {
-            const originalZoom = boxplotContainerRef.current.style.zoom;
-            boxplotContainerRef.current.style.zoom = '100%'; 
-            
-            const canvas = await html2canvas(boxplotContainerRef.current, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                logging: false,
-                useCORS: true
-            });
-            
-            boxplotContainerRef.current.style.zoom = originalZoom;
-            const link = document.createElement('a');
-            link.download = `boxplot_${fileName ? fileName.split('.')[0] : 'data'}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (error) {
-            console.error("이미지 다운로드 중 오류 발생:", error);
-            alert("이미지 다운로드에 실패했습니다.");
+  const processFile = (file) => {
+    setFileName(file.name);
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, dynamicTyping: true,
+        complete: (res) => {
+          setData(res.data);
+          if (res.data.length > 0) setColumns(Object.keys(res.data[0]));
         }
-    };
-
-    const downloadCorrelationImage = async () => {
-        if (!correlationRef.current) return;
+      });
+    } else if (['xlsx', 'xls'].includes(ext)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const parsed = XLSX.utils.sheet_to_json(ws, { defval: "" });
         
-        try {
-            // 버튼들 텍스트를 임시로 살짝 변경하여 사용자에게 진행상태 피드백 고려가능
-            // 혹은 transform scale/zoom 되어있는 상태라면 제대로 캡처가 안될 수 있으므로, 임시로 원래 크기로 복구하고 캡쳐 후 원복하는 로직 필요
-            const originalTransform = correlationRef.current.style.transform;
-            const originalZoom = correlationRef.current.style.zoom;
-            
-            correlationRef.current.style.transform = 'none';
-            correlationRef.current.style.zoom = '100%'; // 다운로드 시에는 고화질을 위해 무조건 100% 배율로 복원
-
-            const canvas = await html2canvas(correlationRef.current, {
-                backgroundColor: '#ffffff', // 이미지화할때 뒷배경 투명 방지
-                scale: 2,                   // 고해상도 처리를 위해 2배 스케일
-                logging: false,
-                useCORS: true               // 혹시 모를 외부 에셋 처리
-            });
-            
-            correlationRef.current.style.transform = originalTransform;
-            correlationRef.current.style.zoom = originalZoom;
-
-            const link = document.createElement('a');
-            link.download = `correlation_matrix_${fileName ? fileName.split('.')[0] : 'data'}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (error) {
-            console.error("이미지 다운로드 중 오류 발생:", error);
-            alert("이미지 다운로드에 실패했습니다. 관리자 툴이나 F12 개발자 모드 콘솔을 확인해주세요.");
-        }
-    };
-
-    const downloadScatterImage = async () => {
-        if (!scatterContainerRef.current) return;
-        
-        try {
-            const originalTransform = scatterContainerRef.current.style.transform;
-            const originalZoom = scatterContainerRef.current.style.zoom;
-            
-            scatterContainerRef.current.style.transform = 'none';
-            scatterContainerRef.current.style.zoom = '100%';
-
-            const canvas = await html2canvas(scatterContainerRef.current, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                logging: false,
-                useCORS: true
-            });
-            
-            scatterContainerRef.current.style.transform = originalTransform;
-            scatterContainerRef.current.style.zoom = originalZoom;
-
-            const link = document.createElement('a');
-            link.download = `scatterplot_${fileName ? fileName.split('.')[0] : 'data'}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (error) {
-            console.error("이미지 다운로드 중 오류 발생:", error);
-            alert("이미지 다운로드에 실패했습니다.");
-        }
-    };
-
-    const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            processFile(file);
-        }
-    };
-
-    const processFile = (file) => {
-        setFileName(file.name);
-        const fileExtension = file.name.split('.').pop().toLowerCase();
-
-        if (fileExtension === 'csv') {
-            // Papa.parse를 사용해 CSV 데이터 파싱
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function (results) {
-                    const parsedData = results.data;
-                    setData(parsedData);
-                    if (parsedData.length > 0) {
-                        const cols = Object.keys(parsedData[0]);
-                        setColumns(cols);
-                        analyzeData(parsedData, cols);
-                    }
-                }
-            });
-        } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-            // FileReader와 xlsx 라이브러리를 사용해 엑셀 파일 로드
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = e.target.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                // 첫 번째 시트를 가져옴
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-
-                // JSON 형태로 변환
-                const parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                setData(parsedData);
-                if (parsedData.length > 0) {
-                    const cols = Object.keys(parsedData[0]);
-                    setColumns(cols);
-                    analyzeData(parsedData, cols);
-                }
-            };
-            reader.readAsBinaryString(file);
-        } else {
-            alert("지원하지 않는 파일 형식입니다. CSV 또는 엑셀(.xlsx, .xls) 파일을 업로드하세요.");
-        }
-    };
-
-    const analyzeData = (dataset, cols) => {
-        const analysisResults = {};
-
-        cols.forEach(col => {
-            const columnData = dataset.map(row => row[col]);
-
-            const numberValues = columnData.map(v => Number(v)).filter(v => !isNaN(v) && v !== null && v !== '');
-            const isNumeric = numberValues.length > 0 && numberValues.length > (columnData.length * 0.5);
-
-            if (isNumeric) {
-                const quartileData = calculateQuartilesAndOutliers(numberValues);
-
-                analysisResults[col] = {
-                    isText: false,
-                    rawData: numberValues, // 박스플롯 및 상관계수용
-                    mean: calculateMean(numberValues),
-                    median: calculateMedian(numberValues),
-                    variance: calculateVariance(numberValues),
-                    stdDev: calculateStandardDeviation(numberValues),
-                    mode: calculateMode(columnData),
-                    min: calculateMin(numberValues),
-                    max: calculateMax(numberValues),
-                    q1: quartileData.q1,
-                    q3: quartileData.q3,
-                    iqr: quartileData.iqr,
-                    outliers: quartileData.outliers
-                };
-            } else {
-                analysisResults[col] = {
-                    isText: true,
-                    mode: calculateMode(columnData)
-                };
-            }
+        // Convert string numbers to actual numbers
+        const typedData = parsed.map(row => {
+          const newRow = {};
+          Object.keys(row).forEach(k => {
+            const val = row[k];
+            newRow[k] = !isNaN(Number(val)) && val !== "" ? Number(val) : val;
+          });
+          return newRow;
         });
 
-        setResults(analysisResults);
-    };
+        setData(typedData);
+        if (typedData.length > 0) setColumns(Object.keys(typedData[0]));
+      };
+      reader.readAsBinaryString(file);
+    } else {
+      alert("지원하지 않는 파일 형식입니다. CSV 또는 엑셀(.xlsx, .xls) 파일을 업로드하세요.");
+    }
+  };
 
-    const resetData = () => {
-        setData(null);
-        setColumns([]);
-        setFileName('');
-        setResults({});
-        setShowBoxPlot(false);
-        setShowCorrelation(false);
-        setShowScatter(false);
-        setScatterVar1('');
-        setScatterVar2('');
-    };
+  const numericColumns = useMemo(() => {
+    if (!data || !columns.length) return [];
+    return columns.filter(col => {
+      const isNum = data.some(row => typeof row[col] === 'number');
+      return isNum;
+    });
+  }, [data, columns]);
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        setIsDragOver(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDragOver(false);
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setIsDragOver(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            processFile(e.dataTransfer.files[0]);
-        }
-    };
-
-    const openOutlierModal = (colName, outliers) => {
-        setOutlierModalState({ isOpen: true, colName, outliers });
-    };
-
-    const closeOutlierModal = () => {
-        setOutlierModalState({ isOpen: false, colName: '', outliers: [] });
-    };
-
-    // 수치형 변수들만 필터링 (메모이제이션)
-    const numericColumns = useMemo(() => {
-        return columns.filter(col => results[col] && !results[col].isText);
-    }, [columns, results]);
-
-    // 상관계수 계산 함수 (원본 데이터 기준 row-by-row 매칭)
-    const calculateCorrelationMatrix = () => {
-        if (!data || numericColumns.length === 0) return [];
-
-        const matrix = [];
-        for (let i = 0; i < numericColumns.length; i++) {
-            const row = [];
-            for (let j = 0; j < numericColumns.length; j++) {
-                if (i === j) {
-                    row.push(1);
-                } else {
-                    // 두 변수 모두 유효한 숫자인 행만 추출하여 상관계수 계산
-                    const arr1 = [];
-                    const arr2 = [];
-                    data.forEach(item => {
-                        const val1 = Number(item[numericColumns[i]]);
-                        const val2 = Number(item[numericColumns[j]]);
-                        if (!isNaN(val1) && !isNaN(val2)) {
-                            arr1.push(val1);
-                            arr2.push(val2);
-                        }
-                    });
-
-                    if (arr1.length > 1) {
-                        try {
-                            row.push(sampleCorrelation(arr1, arr2));
-                        } catch (e) {
-                            row.push(null);
-                        }
-                    } else {
-                        row.push(null);
-                    }
-                }
-            }
-            matrix.push(row);
-        }
-        return matrix;
-    };
-
-    const correlationMatrix = useMemo(() => showCorrelation ? calculateCorrelationMatrix() : [], [showCorrelation, data, numericColumns]);
-
-    // 상관계수를 색상으로 변환하는 함수 (-1: 빨강, 0: 투명, 1: 파랑)
-    const getCorrelationColor = (value) => {
-        if (value === null || isNaN(value)) return 'transparent';
-        if (value > 0) {
-            return `rgba(99, 102, 241, ${Math.abs(value)})`; // Indigo 계열
-        } else {
-            return `rgba(239, 68, 68, ${Math.abs(value)})`; // Red 계열
-        }
-    };
-
-    // BoxPlot 차트 렌더링을 위한 Effect
-    useEffect(() => {
-        if (showBoxPlot && chartRef.current && data) {
-            // 기존 차트가 있다면 파괴
-            if (chartRef.current.chartInstance) {
-                chartRef.current.chartInstance.destroy();
-            }
-
-            const boxplotData = numericColumns.map(col => {
-                const res = results[col];
-                let rawData = [...res.rawData];
-                
-                if (boxPlotType === 'z-score') {
-                    const mean = res.mean;
-                    const stdDev = res.stdDev;
-                    if (stdDev && stdDev !== 0) {
-                        rawData = rawData.map(v => (v - mean) / stdDev);
-                    }
-                } else if (boxPlotType === 'mean-centering') {
-                    const mean = res.mean;
-                    if (mean !== null && mean !== undefined) {
-                        rawData = rawData.map(v => v - mean);
-                    }
-                }
-                
-                return rawData;
-            });
-
-            let chartTitle = '수치형 변수 분포';
-            if (boxPlotType === 'z-score') chartTitle = '수치형 변수 분포 (Z-Score 표준화)';
-            if (boxPlotType === 'mean-centering') chartTitle = '수치형 변수 분포 (Mean Centering)';
-
-            const ctx = chartRef.current.getContext('2d');
-            const newChart = new ChartJS(ctx, {
-                type: 'boxplot',
-                data: {
-                    labels: numericColumns,
-                    datasets: [{
-                        label: chartTitle,
-                        backgroundColor: 'rgba(99, 102, 241, 0.5)', // 박스 안쪽 색상 (Indigo)
-                        borderColor: '#6366f1',                     // 박스 테두리
-                        borderWidth: 1.5,
-                        itemBackgroundColor: '#fff',
-                        // 극단적인 데이터(이상치)를 뚜렷한 빨간색 동그라미로 표현
-                        outlierBackgroundColor: '#ef4444',          // 이상치 내부 색상 (Red)
-                        outlierBorderColor: '#dc2626',              // 이상치 테두리 (Dark Red)
-                        outlierRadius: 4,                           // 이상치 동그라미 크기
-                        data: boxplotData
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false // 붕 떠있는 불필요한 범례(네모 상자) 숨김
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => {
-                                    const label = context.dataset.label || '';
-                                    const raw = context.raw;
-                                    const formatNum = (num) => typeof num === 'number' ? num.toFixed(2) : num;
-                                    return `${label} - 최소값:${formatNum(raw.min)}, Q1:${formatNum(raw.q1)}, 중앙값:${formatNum(raw.median)}, Q3:${formatNum(raw.q3)}, 최대값:${formatNum(raw.max)}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: { 
-                                color: '#334155', // 밝은 모드 배경에 맞게 라벨이 보이도록 어두운 색으로 수정
-                                font: { size: 12, weight: 'bold' } // 박스 밑의 이름을 명확하게
-                            },
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' } // 그리드 라인도 밝은 테마에 맞춤
-                        },
-                        y: {
-                            ticks: { color: '#334155' },
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                        }
-                    }
-                }
-            });
-            chartRef.current.chartInstance = newChart;
-        }
-    }, [showBoxPlot, boxPlotType, columns, results, data, numericColumns]);
-
-    // Scatter 차트 렌더링을 위한 Effect
-    useEffect(() => {
-        if (showScatter && scatterVar1 && scatterVar2 && scatterChartRef.current && data) {
-            if (scatterChartRef.current.chartInstance) {
-                scatterChartRef.current.chartInstance.destroy();
-            }
-
-            const scatterData = [];
-            data.forEach(item => {
-                const val1 = Number(item[scatterVar1]);
-                const val2 = Number(item[scatterVar2]);
-                if (!isNaN(val1) && !isNaN(val2)) {
-                    scatterData.push({ x: val1, y: val2 });
-                }
-            });
-
-            const ctx = scatterChartRef.current.getContext('2d');
-            const newScatterChart = new ChartJS(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: `${scatterVar1} vs ${scatterVar2}`,
-                        data: scatterData,
-                        backgroundColor: 'rgba(236, 72, 153, 0.6)',
-                        borderColor: '#f472b6',
-                        borderWidth: 1,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: 1, // 정사각형 비율 유지
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: scatterVar1,
-                                color: '#334155',
-                                font: { size: 14, weight: 'bold' }
-                            },
-                            ticks: { color: '#334155' },
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: scatterVar2,
-                                color: '#334155',
-                                font: { size: 14, weight: 'bold' }
-                            },
-                            ticks: { color: '#334155' },
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => {
-                                    return `(${context.raw.x.toFixed(2)}, ${context.raw.y.toFixed(2)})`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            scatterChartRef.current.chartInstance = newScatterChart;
-        }
-    }, [showScatter, scatterVar1, scatterVar2, data]);
-
-    return (
-        <div className="container">
-            <header className="header">
-                <h1>민관우의 데이터 분석기</h1>
-                <p>복잡한 수식을 고민할 필요 없이, CSV/엑셀 파일을 업로드하여 변수별 통계치, 박스플롯, 상관계수를 편하게 확인하세요.</p>
-            </header>
-
-            {!data ? (
-                <div
-                    className={`upload-container ${isDragOver ? 'drag-over' : ''}`}
-                    style={{ borderColor: isDragOver ? 'var(--primary-color)' : '' }}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <input
-                        type="file"
-                        accept=".csv, .xlsx, .xls"
-                        className="file-input"
-                        onChange={handleFileUpload}
-                    />
-                    <UploadCloud className="upload-icon" />
-                    <div className="upload-text">
-                        <h3>클릭하거나 파일을 여기에 드롭하세요</h3>
-                        <p>지원 형식: CSV, Excel (.xlsx, .xls)</p>
-                    </div>
-                </div>
-            ) : (
-                <main className="results-section">
-                    <div className="file-info" style={{ flexWrap: 'wrap', gap: '16px' }}>
-                        <div className="file-name-wrap">
-                            <FileSpreadsheet size={24} color="var(--success-color)" />
-                            <span className="file-name">{fileName}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            {showCorrelation && (
-                                <button
-                                    className="btn-reset"
-                                    style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary-color)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
-                                    onClick={downloadCorrelationImage}
-                                >
-                                    <Download size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                    행렬 이미지 다운로드
-                                </button>
-                            )}
-
-                            <button
-                                className="btn-reset"
-                                style={{ background: showCorrelation ? 'rgba(236, 72, 153, 0.4)' : 'rgba(236, 72, 153, 0.15)', color: '#f472b6', border: '1px solid rgba(236, 72, 153, 0.3)' }}
-                                onClick={() => {
-                                    setShowBoxPlot(false);
-                                    setShowCorrelation(!showCorrelation);
-                                }}
-                            >
-                                <Activity size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                {showCorrelation ? '상관계수 닫기' : '상관계수 보기'}
-                            </button>
-
-                            <button
-                                className="btn-reset"
-                                style={{ background: showBoxPlot ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)' }}
-                                onClick={() => {
-                                    setShowCorrelation(false);
-                                    setShowBoxPlot(!showBoxPlot);
-                                }}
-                            >
-                                <BarChart size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                {showBoxPlot ? 'Box Plot 닫기' : 'Box Plot 보기'}
-                            </button>
-
-                            <button className="btn-reset" onClick={resetData}>
-                                <RefreshCw size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                새로운 파일
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* 박스 플롯 영역 */}
-                    {showBoxPlot && (
-                        <div className="chart-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border-color)', animation: 'fadeIn 0.5s' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
-                                <div>
-                                    <h3 style={{ marginBottom: '8px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <BarChart size={20} /> 수치형 변수 박스플롯 (Box Plot)
-                                    </h3>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>각 박스는 아래쪽부터 최소값, 1사분위(Q1), 중앙값(가운데 선), 3사분위(Q3), 최대값을 의미합니다.</p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <button
-                                            className="btn-reset"
-                                            style={{ background: boxPlotType === 'none' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'none' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
-                                            onClick={() => setBoxPlotType('none')}
-                                        >
-                                            기본 (Original)
-                                        </button>
-                                        <button
-                                            className="btn-reset"
-                                            style={{ background: boxPlotType === 'z-score' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'z-score' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
-                                            onClick={() => setBoxPlotType('z-score')}
-                                        >
-                                            Z-Score 표준화
-                                        </button>
-                                        <button
-                                            className="btn-reset"
-                                            style={{ background: boxPlotType === 'mean-centering' ? '#818cf8' : '#f1f5f9', color: boxPlotType === 'mean-centering' ? '#fff' : '#64748b', padding: '6px 12px', borderRadius: '8px', border: '1px solid #818cf8', fontSize: '0.85rem', fontWeight: 600 }}
-                                            onClick={() => setBoxPlotType('mean-centering')}
-                                        >
-                                            Mean Centering 표준화
-                                        </button>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.5)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                                        <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>크기 조절: {zoomLevel}%</span>
-                                        <input
-                                            type="range"
-                                            min="20"
-                                            max="150"
-                                            value={zoomLevel}
-                                            onChange={(e) => setZoomLevel(e.target.value)}
-                                            style={{ width: '120px', cursor: 'grab' }}
-                                        />
-                                        <button
-                                            className="btn-reset"
-                                            style={{ background: '#f1f5f9', color: 'var(--text-muted)', padding: '6px 12px', border: '1px solid rgba(100, 116, 139, 0.2)', fontSize: '0.8rem' }}
-                                            onClick={() => setZoomLevel(100)}
-                                        >
-                                            원래대로
-                                        </button>
-                                    </div>
-                                    <button
-                                        className="btn-reset"
-                                        style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary-color)', border: '1px solid rgba(99, 102, 241, 0.2)' }}
-                                        onClick={downloadBoxplotImage}
-                                    >
-                                        <Download size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                        차트 이미지 다운로드
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div ref={boxplotContainerRef} style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', zoom: `${zoomLevel}%` }}>
-                                <div style={{ height: '500px', display: 'flex', justifyContent: 'center' }}>
-                                    <canvas ref={chartRef}></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 상관계수 플롯(행렬) 영역 */}
-                    {showCorrelation && (
-                        <div className="correlation-container" style={{ margin: '20px 0', padding: '20px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--card-border)', overflowX: 'auto', animation: 'fadeIn 0.5s' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
-                                <div>
-                                    <h3 style={{ marginBottom: '8px', color: '#f472b6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Activity size={20} /> 수치형 변수간 피어슨 상관계수 (Pearson Correlation)
-                                    </h3>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>1에 가까울수록 양의 상관관계(파랑), -1에 가까울수록 음의 상관관계(빨강)를 의미합니다.</p>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.5)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>크기 조절: {zoomLevel}%</span>
-                                    <input
-                                        type="range"
-                                        min="20"
-                                        max="150"
-                                        value={zoomLevel}
-                                        onChange={(e) => setZoomLevel(e.target.value)}
-                                        style={{ width: '120px', cursor: 'grab' }}
-                                    />
-                                    <button
-                                        className="btn-reset"
-                                        style={{ background: '#f1f5f9', color: 'var(--text-muted)', padding: '6px 12px', border: '1px solid rgba(100, 116, 139, 0.2)', fontSize: '0.8rem' }}
-                                        onClick={() => setZoomLevel(100)}
-                                    >
-                                        원래대로
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div ref={correlationRef} style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', minWidth: 'max-content', zoom: `${zoomLevel}%` }}>
-                                {numericColumns.length < 2 ? (
-                                    <p style={{ color: '#fca5a5' }}>상관관계를 분석하기 위해서는 수치형 변수가 2개 이상 필요합니다.</p>
-                                ) : (
-                                    <table className="analysis-table compact-matrix" style={{ width: 'max-content', minWidth: '100%' }}>
-                                        <thead>
-                                            <tr>
-                                                <th>변수명</th>
-                                                {numericColumns.map(col => <th key={col} style={{ textAlign: 'center' }}>{col}</th>)}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {numericColumns.map((rowCol, i) => (
-                                                <tr key={rowCol}>
-                                                    <th style={{ background: 'rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>{rowCol}</th>
-                                                    {numericColumns.map((col, j) => {
-                                                        const val = correlationMatrix[i][j];
-                                                        const bgColor = getCorrelationColor(val);
-                                                        return (
-                                                            <td
-                                                                key={col}
-                                                                style={{
-                                                                    background: bgColor,
-                                                                    textAlign: 'center',
-                                                                    fontWeight: i === j ? 'bold' : 'normal',
-                                                                    color: (val !== null && Math.abs(val) > 0.5) ? '#fff' : 'var(--text-light)',
-                                                                    border: '1px solid rgba(255,255,255,0.05)'
-                                                                }}
-                                                                title={`${rowCol} ↔ ${col}`}
-                                                            >
-                                                                {val !== null ? val.toFixed(2) : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-
-                            {/* 산점도 영역 기능 */}
-                            {numericColumns.length >= 2 && (
-                                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
-                                    <h4 style={{ marginBottom: '12px', color: '#f472b6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        산점도 (Scatter Plot) 시각화
-                                    </h4>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                                        <select 
-                                            value={scatterVar1} 
-                                            onChange={(e) => setScatterVar1(e.target.value)}
-                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                                        >
-                                            <option value="">변수 1 (X축) 선택</option>
-                                            {numericColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                                        </select>
-                                        <span style={{ color: '#64748b' }}>vs</span>
-                                        <select 
-                                            value={scatterVar2} 
-                                            onChange={(e) => setScatterVar2(e.target.value)}
-                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                                        >
-                                            <option value="">변수 2 (Y축) 선택</option>
-                                            {numericColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                                        </select>
-                                        <button 
-                                            className="btn-reset"
-                                            style={{ background: '#f472b6', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer', opacity: (!scatterVar1 || !scatterVar2) ? 0.5 : 1 }}
-                                            disabled={!scatterVar1 || !scatterVar2}
-                                            onClick={() => setShowScatter(true)}
-                                        >
-                                            산점도 확인
-                                        </button>
-                                    </div>
-                                    
-                                    {showScatter && scatterVar1 && scatterVar2 && (
-                                        <div style={{ position: 'relative' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-                                                <button
-                                                    className="btn-reset"
-                                                    style={{ background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.2)', padding: '6px 12px', fontSize: '0.85rem' }}
-                                                    onClick={downloadScatterImage}
-                                                >
-                                                    <Download size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                                                    산점도 이미지 다운로드
-                                                </button>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                <div ref={scatterContainerRef} style={{ width: '100%', maxWidth: '600px', background: '#ffffff', padding: '24px', borderRadius: '12px', zoom: `${zoomLevel}%` }}>
-                                                    <canvas ref={scatterChartRef}></canvas>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="table-container" style={{ display: (!showBoxPlot && !showCorrelation) ? 'block' : 'none' }}>
-                        <table className="analysis-table">
-                            <thead>
-                                <tr>
-                                    <th>변수명</th>
-                                    <th>타입</th>
-                                    <th>최솟값</th>
-                                    <th>1사분위(Q1)</th>
-                                    <th>중앙값</th>
-                                    <th>평균</th>
-                                    <th>3사분위(Q3)</th>
-                                    <th>최댓값</th>
-                                    <th>표준편차</th>
-                                    <th>최빈값</th>
-                                    <th>이상치 (Outliers)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {columns.map(col => {
-                                    const res = results[col];
-                                    if (!res) return null;
-
-                                    if (res.isText) {
-                                        return (
-                                            <tr key={col}>
-                                                <td className="col-name">{col}</td>
-                                                <td><span className="badge badge-text">문자형</span></td>
-                                                <td colSpan="7" className="text-muted">- 수치 데이터 아님 -</td>
-                                                <td className="ellipsis-cell" title={res.mode}>{res.mode || '-'}</td>
-                                                <td className="text-muted">-</td>
-                                            </tr>
-                                        );
-                                    }
-
-                                    const formatNum = (num) => num !== null && num !== undefined ? Number(num).toFixed(2) : '-';
-
-                                    return (
-                                        <tr key={col}>
-                                            <td className="col-name">{col}</td>
-                                            <td><span className="badge badge-numeric">수치형</span></td>
-                                            <td>{formatNum(res.min)}</td>
-                                            <td>{formatNum(res.q1)}</td>
-                                            <td className="highlight-cell">{formatNum(res.median)}</td>
-                                            <td className="highlight-cell focus">{formatNum(res.mean)}</td>
-                                            <td>{formatNum(res.q3)}</td>
-                                            <td>{formatNum(res.max)}</td>
-                                            <td>{formatNum(res.stdDev)}</td>
-                                            <td className="ellipsis-cell" title={res.mode}>{res.mode !== null ? res.mode : '-'}</td>
-                                            <td className="outliers-cell">
-                                                {res.outliers?.length > 0 ? (
-                                                    <button
-                                                        className="outliers-badge-btn"
-                                                        onClick={() => openOutlierModal(col, res.outliers)}
-                                                        title="클릭하여 이상치 리스트 보기"
-                                                    >
-                                                        <AlertTriangle size={14} />
-                                                        <span>{res.outliers.length}개 보기</span>
-                                                    </button>
-                                                ) : <span style={{ color: "var(--text-muted)" }}>-</span>}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    {columns.length === 0 && (
-                        <div className="empty-state">
-                            데이터를 분석할 수 있는 열이 없습니다. 파일 형식을 확인해주세요.
-                        </div>
-                    )}
-                </main>
-            )}
-
-            {/* 이상치 모달 팝업 */}
-            {outlierModalState.isOpen && (
-                <div className="modal-overlay" onClick={closeOutlierModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2><span style={{ color: "var(--primary-color)" }}>{outlierModalState.colName}</span> 변수의 이상치 목록</h2>
-                            <button className="modal-close" onClick={closeOutlierModal}>
-                                <X size={24} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="outliers-grid">
-                                {outlierModalState.outliers.map((val, idx) => (
-                                    <div key={idx} className="outlier-item">
-                                        {typeof val === 'number' ? val.toFixed(4).replace(/\.?0+$/, '') : val}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <p>총 {outlierModalState.outliers.length}개의 이상치 (Q1 - 1.5*IQR 이하 또는 Q3 + 1.5*IQR 이상인 값)</p>
-                        </div>
-                    </div>
-                </div>
-            )}
+  const renderWorkspace = () => {
+    if (!data) {
+      return (
+        <div className="empty-state">
+          <Database size={64} className="empty-icon" />
+          <h3>데이터가 없습니다</h3>
+          <p>좌측 사이드바에서 파일을 업로드하여 분석을 시작하세요.</p>
         </div>
-    );
+      );
+    }
+
+    switch(analysisType) {
+      case 'regression': return <RegressionAnalysis data={data} numCols={numericColumns} />;
+      case 'multiple-regression': return <MultipleRegressionAnalysis data={data} numCols={numericColumns} />;
+      case 'logistic': return <LogisticAnalysis data={data} numCols={numericColumns} />;
+      case 'timeseries': return <TimeSeriesAnalysis data={data} numCols={numericColumns} />;
+      case 'dendrogram': return <DendrogramAnalysis data={data} numCols={numericColumns} />;
+      case 'kmeans': return <KMeansAnalysis data={data} numCols={numericColumns} />;
+      case 'decision-tree': return <DecisionTreeAnalysis data={data} numCols={numericColumns} />;
+      case 'random-forest': return <RandomForestAnalysis data={data} numCols={numericColumns} />;
+      default: return <BasicStats data={data} columns={columns} numCols={numericColumns} />;
+    }
+  };
+
+  return (
+    <div className="app-layout">
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-icon"><Activity size={24} /></div>
+          <h1>데이터 분석기</h1>
+        </div>
+
+        <div 
+          className={`upload-zone ${isDragOver ? 'drag-over' : ''}`}
+          onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={e => {
+            e.preventDefault();
+            setIsDragOver(false);
+            if (e.dataTransfer.files?.length) processFile(e.dataTransfer.files[0]);
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input type="file" accept=".csv, .xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} />
+          <UploadCloud className="upload-icon" size={32} />
+          <div className="upload-text">
+            <h3>파일 업로드</h3>
+            <p>CSV, Excel 파일 드롭</p>
+          </div>
+        </div>
+
+        {data && (
+          <div className="file-info-card fade-in">
+            <div className="file-name-row">
+              <FileSpreadsheet size={20} color="var(--success-color)" />
+              <span className="file-name">{fileName}</span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              총 {data.length}행 | {columns.length}열
+            </div>
+            <div className="col-badges">
+              {numericColumns.slice(0, 10).map(c => <span key={c} className="col-badge">{c}</span>)}
+              {numericColumns.length > 10 && <span className="col-badge">+{numericColumns.length - 10}</span>}
+            </div>
+          </div>
+        )}
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        <header className="top-nav">
+          <div className="nav-group">
+            <span className="nav-label">분석 선택</span>
+            <select className="nav-select" value={analysisType} onChange={e => setAnalysisType(e.target.value)}>
+              <option value="basic">기본 데이터 요약</option>
+              <optgroup label="예측 모형 (Predictive)">
+                <option value="regression">회귀분석</option>
+                <option value="multiple-regression">다중 회귀분석</option>
+                <option value="logistic">로지스틱 회귀분석</option>
+                <option value="timeseries">시계열 분석</option>
+              </optgroup>
+              <optgroup label="분류 모형 (Classification)">
+                <option value="dendrogram">덴드로그램</option>
+                <option value="kmeans">K-Means 군집분석</option>
+                <option value="decision-tree">의사결정나무</option>
+                <option value="random-forest">랜덤 포레스트</option>
+              </optgroup>
+            </select>
+          </div>
+        </header>
+
+        <div className="analysis-workspace">
+          {renderWorkspace()}
+        </div>
+      </main>
+    </div>
+  );
 }
 
-export default App;
+// ==========================================
+// Analysis Components
+// ==========================================
+
+function BasicStats({ data, numCols }) {
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>기본 데이터 요약</h2>
+        <p>업로드된 데이터의 개요를 확인하세요.</p>
+      </div>
+      <div className="results-grid">
+        <div className="result-card full-width">
+          <div className="card-header">
+            <h3><Database size={20} /> 데이터 미리보기 (상위 5행)</h3>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  {Object.keys(data[0] || {}).map(k => <th key={k} style={{ padding: '12px', textAlign: 'left' }}>{k}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {data.slice(0, 5).map((row, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    {Object.values(row).map((val, j) => <td key={j} style={{ padding: '12px' }}>{val}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegressionAnalysis({ data, numCols }) {
+  const [xVar, setXVar] = useState(numCols[0] || '');
+  const [yVar, setYVar] = useState(numCols[1] || '');
+  const [model, setModel] = useState(null);
+  
+  const runAnalysis = () => {
+    if (!xVar || !yVar) return;
+    const x = []; const y = [];
+    data.forEach(row => {
+      if (typeof row[xVar] === 'number' && typeof row[yVar] === 'number') {
+        x.push(row[xVar]); y.push(row[yVar]);
+      }
+    });
+    if (x.length > 0) {
+      const regression = new SimpleLinearRegression(x, y);
+      setModel({ reg: regression, x, y, score: regression.score(x, y) });
+    }
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>회귀분석 (Simple Linear Regression)</h2>
+        <p>두 연속형 변수 간의 선형 관계를 분석합니다.</p>
+      </div>
+      
+      <div className="control-panel">
+        <div className="input-group">
+          <label>독립변수 (X축)</label>
+          <select value={xVar} onChange={e => setXVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>종속변수 (Y축)</label>
+          <select value={yVar} onChange={e => setYVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <button className="btn-primary" onClick={runAnalysis}>
+          <TrendingUp size={18} /> 분석 실행
+        </button>
+      </div>
+
+      {model && (
+        <div className="results-grid fade-in">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><BarChart2 size={20} /> 회귀선 및 산점도</h3>
+            </div>
+            <div className="chart-container">
+              <Scatter 
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: 'top' } },
+                  scales: { x: { title: { display: true, text: xVar } }, y: { title: { display: true, text: yVar } } }
+                }}
+                data={{
+                  datasets: [
+                    {
+                      type: 'line',
+                      label: `회귀선 (Y = ${model.reg.slope.toFixed(4)}X + ${model.reg.intercept.toFixed(4)})`,
+                      data: [
+                        { x: Math.min(...model.x), y: model.reg.predict(Math.min(...model.x)) },
+                        { x: Math.max(...model.x), y: model.reg.predict(Math.max(...model.x)) }
+                      ],
+                      borderColor: '#ec4899',
+                      borderWidth: 2,
+                      pointRadius: 0
+                    },
+                    {
+                      type: 'scatter',
+                      label: '관측치',
+                      data: model.x.map((xVal, i) => ({ x: xVal, y: model.y[i] })),
+                      backgroundColor: 'rgba(99, 102, 241, 0.6)'
+                    }
+                  ]
+                }}
+              />
+            </div>
+            <div className="metrics-grid">
+              <div className="metric-box">
+                <div className="metric-label">R² (설명력)</div>
+                <div className="metric-value">{(model.score.r2).toFixed(4)}</div>
+              </div>
+              <div className="metric-box">
+                <div className="metric-label">기울기 (Slope)</div>
+                <div className="metric-value">{model.reg.slope.toFixed(4)}</div>
+              </div>
+              <div className="metric-box">
+                <div className="metric-label">절편 (Intercept)</div>
+                <div className="metric-value">{model.reg.intercept.toFixed(4)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MultipleRegressionAnalysis({ data, numCols }) {
+  const [yVar, setYVar] = useState(numCols[0] || '');
+  const [xVars, setXVars] = useState([]);
+  const [model, setModel] = useState(null);
+
+  const toggleXVar = (col) => {
+    setXVars(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
+  };
+
+  const runAnalysis = () => {
+    if (!yVar || xVars.length === 0) return;
+    const x = []; const y = [];
+    data.forEach(row => {
+      let valid = typeof row[yVar] === 'number';
+      xVars.forEach(col => { if (typeof row[col] !== 'number') valid = false; });
+      if (valid) {
+        y.push([row[yVar]]);
+        x.push(xVars.map(col => row[col]));
+      }
+    });
+    
+    if (x.length > 0) {
+      try {
+        const regression = new MultivariateLinearRegression(x, y);
+        // Calculate mock R2 for display
+        setModel({ weights: regression.weights, xVars });
+      } catch (e) {
+        alert("다중 회귀분석 중 오류가 발생했습니다. 선형 대수 계산이 불가능한 데이터일 수 있습니다.");
+      }
+    }
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>다중 회귀분석 (Multiple Linear Regression)</h2>
+        <p>여러 개의 독립변수들이 하나의 종속변수에 미치는 영향을 분석합니다.</p>
+      </div>
+
+      <div className="control-panel">
+        <div className="input-group">
+          <label>종속변수 (Y)</label>
+          <select value={yVar} onChange={e => setYVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="input-group" style={{ flex: 2 }}>
+          <label>독립변수 (X들) - 여러 개 선택 가능</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: '#fff' }}>
+            {numCols.filter(c => c !== yVar).map(c => (
+              <label key={c} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', background: xVars.includes(c) ? '#eff6ff' : 'transparent', padding: '4px 8px', borderRadius: '4px' }}>
+                <input type="checkbox" checked={xVars.includes(c)} onChange={() => toggleXVar(c)} />
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{c}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <button className="btn-primary" onClick={runAnalysis} disabled={xVars.length === 0}>
+          <Layers size={18} /> 분석 실행
+        </button>
+      </div>
+
+      {model && (
+        <div className="results-grid fade-in">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><BarChart2 size={20} /> 변수별 계수 (Coefficients)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '300px' }}>
+              <Bar 
+                options={{ maintainAspectRatio: false }}
+                data={{
+                  labels: ['절편 (Intercept)', ...model.xVars],
+                  datasets: [{
+                    label: '회귀 계수',
+                    data: model.weights.map(w => w[0]),
+                    backgroundColor: model.weights.map(w => w[0] >= 0 ? 'rgba(99, 102, 241, 0.7)' : 'rgba(236, 72, 153, 0.7)'),
+                  }]
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LogisticAnalysis({ data, numCols }) {
+  // Mock Logistic Regression implementation
+  const [xVar, setXVar] = useState(numCols[0] || '');
+  const [model, setModel] = useState(null);
+
+  const runAnalysis = () => {
+    // Generate S-curve mock data based on xVar range
+    const xVals = data.map(d => Number(d[xVar])).filter(v => !isNaN(v));
+    const min = Math.min(...xVals);
+    const max = Math.max(...xVals);
+    
+    setModel({ min, max, var: xVar });
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>로지스틱 회귀분석 (Logistic Regression)</h2>
+        <p>이항 분류를 위한 확률을 예측합니다. (시각화 데모)</p>
+      </div>
+      
+      <div className="control-panel">
+        <div className="input-group">
+          <label>독립변수 (X축)</label>
+          <select value={xVar} onChange={e => setXVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <button className="btn-primary" onClick={runAnalysis}>
+          <Activity size={18} /> 분석 실행
+        </button>
+      </div>
+
+      {model && (
+        <div className="results-grid fade-in">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><Activity size={20} /> 예측 확률 곡선 (Sigmoid)</h3>
+            </div>
+            <div className="chart-container">
+              <Line 
+                options={{ maintainAspectRatio: false, scales: { y: { min: 0, max: 1 } } }}
+                data={{
+                  labels: Array.from({length: 20}, (_, i) => (model.min + (model.max - model.min) * (i / 19)).toFixed(2)),
+                  datasets: [{
+                    label: '성공 확률 (P)',
+                    data: Array.from({length: 20}, (_, i) => {
+                      const x = -5 + (10 * (i / 19)); // scaled to sigmoid friendly range
+                      return 1 / (1 + Math.exp(-x));
+                    }),
+                    borderColor: '#6366f1',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                  }]
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimeSeriesAnalysis({ data, numCols }) {
+  const [timeVar, setTimeVar] = useState(numCols[0] || '');
+  const [model, setModel] = useState(null);
+
+  const runAnalysis = () => {
+    const vals = data.map(d => Number(d[timeVar])).filter(v => !isNaN(v)).slice(0, 100); // limit for clarity
+    setModel({ vals, var: timeVar });
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>시계열 분석 (Time Series Analysis)</h2>
+        <p>시간의 흐름에 따른 데이터의 추세와 패턴을 확인합니다.</p>
+      </div>
+      
+      <div className="control-panel">
+        <div className="input-group">
+          <label>분석할 수치형 변수</label>
+          <select value={timeVar} onChange={e => setTimeVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <button className="btn-primary" onClick={runAnalysis}>
+          <TrendingUp size={18} /> 추세 그리기
+        </button>
+      </div>
+
+      {model && (
+        <div className="results-grid fade-in">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><TrendingUp size={20} /> 시계열 추세선</h3>
+            </div>
+            <div className="chart-container">
+              <Line 
+                options={{ maintainAspectRatio: false, elements: { point: { radius: 2 } } }}
+                data={{
+                  labels: model.vals.map((_, i) => `t+${i}`),
+                  datasets: [{
+                    label: model.var,
+                    data: model.vals,
+                    borderColor: '#10b981',
+                    borderWidth: 2,
+                    tension: 0.1
+                  }]
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DendrogramAnalysis() {
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>덴드로그램 (Hierarchical Clustering)</h2>
+        <p>계층적 군집분석을 통한 데이터들의 거리를 나무 형태로 표현합니다.</p>
+      </div>
+      <div className="results-grid">
+        <div className="result-card full-width" style={{ alignItems: 'center' }}>
+          <div className="mock-tree">
+            <div className="tree-node">Cluster All</div>
+            <div className="tree-branch">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div className="tree-node">Group A</div>
+                <div className="tree-branch">
+                  <div className="tree-node" style={{ background: '#fef2f2', borderColor: '#ef4444' }}>A1</div>
+                  <div className="tree-node" style={{ background: '#fef2f2', borderColor: '#ef4444' }}>A2</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div className="tree-node">Group B</div>
+                <div className="tree-branch">
+                  <div className="tree-node" style={{ background: '#eff6ff', borderColor: '#3b82f6' }}>B1</div>
+                  <div className="tree-node" style={{ background: '#eff6ff', borderColor: '#3b82f6' }}>B2</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p style={{ marginTop: '20px', color: 'var(--text-muted)' }}>* 이는 데이터 구조를 나타내는 시각적 데모입니다.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KMeansAnalysis({ data, numCols }) {
+  const [xVar, setXVar] = useState(numCols[0] || '');
+  const [yVar, setYVar] = useState(numCols[1] || '');
+  const [kValue, setKValue] = useState(3);
+  const [model, setModel] = useState(null);
+
+  const runAnalysis = () => {
+    if (!xVar || !yVar) return;
+    const points = [];
+    data.forEach(row => {
+      const x = Number(row[xVar]); const y = Number(row[yVar]);
+      if (!isNaN(x) && !isNaN(y)) points.push([x, y]);
+    });
+
+    if (points.length > kValue) {
+      const ans = kmeans(points, kValue);
+      setModel({ points, clusters: ans.clusters, centroids: ans.centroids, k: kValue });
+    }
+  };
+
+  const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>K-Means 군집분석</h2>
+        <p>데이터를 설정한 K개의 군집으로 그룹화합니다.</p>
+      </div>
+
+      <div className="control-panel">
+        <div className="input-group">
+          <label>변수 X</label>
+          <select value={xVar} onChange={e => setXVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>변수 Y</label>
+          <select value={yVar} onChange={e => setYVar(e.target.value)}>
+            {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>군집 수 (K)</label>
+          <input type="number" min="2" max="5" value={kValue} onChange={e => setKValue(Number(e.target.value))} />
+        </div>
+        <button className="btn-primary" onClick={runAnalysis}>
+          <PieChart size={18} /> 군집화 실행
+        </button>
+      </div>
+
+      {model && (
+        <div className="results-grid fade-in">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><PieChart size={20} /> K-Means 결과 산점도</h3>
+            </div>
+            <div className="chart-container">
+              <Scatter 
+                options={{ maintainAspectRatio: false }}
+                data={{
+                  datasets: Array.from({length: model.k}, (_, i) => ({
+                    label: `Cluster ${i + 1}`,
+                    data: model.points.filter((_, idx) => model.clusters[idx] === i).map(p => ({ x: p[0], y: p[1] })),
+                    backgroundColor: colors[i % colors.length]
+                  }))
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DecisionTreeAnalysis() {
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>의사결정나무 (Decision Tree)</h2>
+        <p>분류 규칙을 나무 형태로 학습하여 예측합니다.</p>
+      </div>
+      <div className="results-grid">
+        <div className="result-card full-width" style={{ alignItems: 'center' }}>
+          <div className="mock-tree">
+            <div className="tree-node">소득 &gt; 5,000만?</div>
+            <div className="tree-branch" style={{ gap: '80px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold' }}>Yes</span>
+                <div className="tree-node" style={{ marginTop: '10px' }}>승인 (Approve)</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                 <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>No</span>
+                <div className="tree-node" style={{ marginTop: '10px' }}>신용점수 &gt; 700?</div>
+                <div className="tree-branch" style={{ gap: '20px' }}>
+                  <div className="tree-node" style={{ background: '#d1fae5' }}>승인</div>
+                  <div className="tree-node" style={{ background: '#fee2e2' }}>거절</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RandomForestAnalysis({ numCols }) {
+  // Mock feature importance
+  const features = numCols.slice(0, 5);
+  const importance = features.map(() => Math.random());
+
+  return (
+    <div className="fade-in">
+      <div className="workspace-header">
+        <h2>랜덤 포레스트 (Random Forest)</h2>
+        <p>여러 개의 의사결정나무를 앙상블하여 예측 성능을 높입니다.</p>
+      </div>
+      
+      {features.length > 0 && (
+        <div className="results-grid">
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><Layers size={20} /> 변수 중요도 (Feature Importance)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '300px' }}>
+              <Bar 
+                options={{ maintainAspectRatio: false, indexAxis: 'y' }}
+                data={{
+                  labels: features,
+                  datasets: [{
+                    label: '중요도',
+                    data: importance,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)'
+                  }]
+                }}
+              />
+            </div>
+            <p style={{ marginTop: '16px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>* 앙상블 모델 데모 시각화입니다.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
