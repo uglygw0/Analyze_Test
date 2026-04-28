@@ -843,6 +843,25 @@ function KMeansAnalysis({ data, numCols }) {
               />
             </div>
           </div>
+          
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><BarChart2 size={20} /> 군집별 데이터 개수 (Cluster Sizes)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '250px' }}>
+              <Bar 
+                options={{ maintainAspectRatio: false }}
+                data={{
+                  labels: Array.from({length: model.k}, (_, i) => `Cluster ${i + 1}`),
+                  datasets: [{
+                    label: '데이터 개수',
+                    data: model.clusterCounts,
+                    backgroundColor: colors.slice(0, model.k)
+                  }]
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
