@@ -826,13 +826,38 @@ function KMeansAnalysis({ data, numCols }) {
 
       {model && (
         <div className="results-grid fade-in">
-          <div className="result-card full-width">
+          <div className="result-card">
             <div className="card-header">
-              <h3><PieChart size={20} /> K-Means 결과 산점도</h3>
+              <h3><BarChart2 size={20} /> 원본 데이터 분포</h3>
             </div>
             <div className="chart-container">
               <Scatter 
-                options={{ maintainAspectRatio: false }}
+                options={{ 
+                  maintainAspectRatio: false, 
+                  plugins: { legend: { display: false } },
+                  scales: { x: { title: { display: true, text: xVar } }, y: { title: { display: true, text: yVar } } }
+                }}
+                data={{
+                  datasets: [{
+                    label: '데이터 포인트',
+                    data: model.points.map(p => ({ x: p[0], y: p[1] })),
+                    backgroundColor: 'rgba(156, 163, 175, 0.6)'
+                  }]
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="result-card">
+            <div className="card-header">
+              <h3><PieChart size={20} /> K-Means 군집 결과</h3>
+            </div>
+            <div className="chart-container">
+              <Scatter 
+                options={{ 
+                  maintainAspectRatio: false,
+                  scales: { x: { title: { display: true, text: xVar } }, y: { title: { display: true, text: yVar } } }
+                }}
                 data={{
                   datasets: Array.from({length: model.k}, (_, i) => ({
                     label: `Cluster ${i + 1}`,
