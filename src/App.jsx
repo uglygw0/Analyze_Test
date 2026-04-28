@@ -683,6 +683,20 @@ function TimeSeriesAnalysis({ data, numCols }) {
                     borderColor: '#10b981',
                     borderWidth: 2,
                     tension: 0.1
+                  },
+                  {
+                    label: '7-이동평균 (Moving Average)',
+                    data: model.vals.map((v, i, arr) => {
+                      if (i < 6) return null;
+                      let sum = 0;
+                      for (let j = 0; j < 7; j++) sum += arr[i - j];
+                      return sum / 7;
+                    }),
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    tension: 0.4
                   }]
                 }}
               />
