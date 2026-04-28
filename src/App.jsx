@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Line, Bar } from 'react-chartjs-2';
-import SimpleLinearRegression from 'ml-regression-simple-linear';
+import { SimpleLinearRegression } from 'ml-regression-simple-linear';
 import MultivariateLinearRegression from 'ml-regression-multivariate-linear';
-import kmeans from 'ml-kmeans';
+import { kmeans } from 'ml-kmeans';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
