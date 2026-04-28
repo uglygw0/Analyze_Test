@@ -859,11 +859,23 @@ function KMeansAnalysis({ data, numCols }) {
                   scales: { x: { title: { display: true, text: xVar } }, y: { title: { display: true, text: yVar } } }
                 }}
                 data={{
-                  datasets: Array.from({length: model.k}, (_, i) => ({
-                    label: `Cluster ${i + 1}`,
-                    data: model.points.filter((_, idx) => model.clusters[idx] === i).map(p => ({ x: p[0], y: p[1] })),
-                    backgroundColor: colors[i % colors.length]
-                  }))
+                  datasets: [
+                    ...Array.from({length: model.k}, (_, i) => ({
+                      label: `Cluster ${i + 1}`,
+                      data: model.points.filter((_, idx) => model.clusters[idx] === i).map(p => ({ x: p[0], y: p[1] })),
+                      backgroundColor: colors[i % colors.length]
+                    })),
+                    {
+                      label: '기준점 (Centroids)',
+                      data: model.centroids.map(c => ({ x: c[0], y: c[1] })),
+                      backgroundColor: '#18181b', // 매우 진한 회색/검정
+                      pointStyle: 'star',
+                      pointRadius: 10,
+                      pointHoverRadius: 13,
+                      borderWidth: 2,
+                      borderColor: '#ffffff'
+                    }
+                  ]
                 }}
               />
             </div>
