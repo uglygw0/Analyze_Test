@@ -952,6 +952,30 @@ function RandomForestAnalysis({ numCols }) {
             </div>
             <p style={{ marginTop: '16px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>* 앙상블 모델 데모 시각화입니다.</p>
           </div>
+
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><TrendingUp size={20} /> OOB (Out-of-Bag) Error 추이 (Mock)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '300px' }}>
+              <Line 
+                options={{ maintainAspectRatio: false, scales: { x: { title: { display: true, text: '트리의 수 (Number of Trees)' } }, y: { title: { display: true, text: '오차율 (Error Rate)' } } } }}
+                data={{
+                  labels: [10, 20, 30, 40, 50, 70, 100],
+                  datasets: [{
+                    label: 'OOB Error',
+                    data: [0.35, 0.28, 0.22, 0.20, 0.18, 0.17, 0.165],
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)'
+                  }]
+                }}
+              />
+            </div>
+            <p style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>* 트리의 수가 증가함에 따라 오차율이 어떻게 안정화되는지 보여줍니다.</p>
+          </div>
         </div>
       )}
     </div>
