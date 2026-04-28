@@ -759,7 +759,9 @@ function KMeansAnalysis({ data, numCols }) {
 
     if (points.length > kValue) {
       const ans = kmeans(points, kValue);
-      setModel({ points, clusters: ans.clusters, centroids: ans.centroids, k: kValue });
+      const clusterCounts = Array(kValue).fill(0);
+      ans.clusters.forEach(c => clusterCounts[c]++);
+      setModel({ points, clusters: ans.clusters, centroids: ans.centroids, k: kValue, clusterCounts });
     }
   };
 
@@ -844,6 +846,25 @@ function DecisionTreeAnalysis() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="result-card full-width">
+          <div className="card-header">
+            <h3><BarChart2 size={20} /> 변수 중요도 (Feature Importance - Mock)</h3>
+          </div>
+          <div className="chart-container" style={{ height: '250px' }}>
+            <Bar 
+              options={{ maintainAspectRatio: false }}
+              data={{
+                labels: ['소득', '신용점수', '연령', '직업군'],
+                datasets: [{
+                  label: '중요도',
+                  data: [0.45, 0.35, 0.15, 0.05],
+                  backgroundColor: 'rgba(99, 102, 241, 0.7)'
+                }]
+              }}
+            />
           </div>
         </div>
       </div>
