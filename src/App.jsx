@@ -632,6 +632,34 @@ function LogisticAnalysis({ data, numCols }) {
               />
             </div>
           </div>
+
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><Network size={20} /> ROC Curve (Mock)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '300px' }}>
+              <Line 
+                options={{ maintainAspectRatio: false, scales: { x: { min: 0, max: 1, title: { display: true, text: 'False Positive Rate' } }, y: { min: 0, max: 1, title: { display: true, text: 'True Positive Rate' } } } }}
+                data={{
+                  labels: [0, 0.1, 0.2, 0.3, 0.5, 0.8, 1],
+                  datasets: [{
+                    label: 'ROC 커브',
+                    data: [0, 0.6, 0.8, 0.9, 0.95, 0.99, 1],
+                    borderColor: '#ec4899',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)'
+                  }, {
+                    label: '무작위 예측 (AUC=0.5)',
+                    data: [0, 0.1, 0.2, 0.3, 0.5, 0.8, 1],
+                    borderColor: '#cbd5e1',
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                  }]
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
