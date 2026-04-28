@@ -177,7 +177,14 @@ export default function App() {
 // Analysis Components
 // ==========================================
 
-function BasicStats({ data, numCols }) {
+function BasicStats({ data, columns, numCols }) {
+  // Data for missing values
+  const missingData = columns.map(col => {
+    return data.filter(row => row[col] === null || row[col] === undefined || row[col] === '').length;
+  });
+
+  const catColsCount = columns.length - numCols.length;
+  
   return (
     <div className="fade-in">
       <div className="workspace-header">
@@ -185,6 +192,44 @@ function BasicStats({ data, numCols }) {
         <p>업로드된 데이터의 개요를 확인하세요.</p>
       </div>
       <div className="results-grid">
+        <div className="result-card">
+          <div className="card-header">
+            <h3><PieChart size={20} /> 변수 유형 분포</h3>
+          </div>
+          <div className="chart-container" style={{ height: '250px' }}>
+            <Bar 
+              options={{ maintainAspectRatio: false, indexAxis: 'y' }}
+              data={{
+                labels: ['수치형 변수', '범주/문자형 변수'],
+                datasets: [{
+                  label: '변수 개수',
+                  data: [numCols.length, catColsCount],
+                  backgroundColor: ['#6366f1', '#ec4899']
+                }]
+              }}
+            />
+          </div>
+        </div>
+        
+        <div className="result-card">
+          <div className="card-header">
+            <h3><BarChart2 size={20} /> 변수별 결측치 (Missing Values)</h3>
+          </div>
+          <div className="chart-container" style={{ height: '250px' }}>
+            <Bar 
+              options={{ maintainAspectRatio: false }}
+              data={{
+                labels: columns,
+                datasets: [{
+                  label: '결측치 개수',
+                  data: missingData,
+                  backgroundColor: '#f59e0b'
+                }]
+              }}
+            />
+          </div>
+        </div>
+
         <div className="result-card full-width">
           <div className="card-header">
             <h3><Database size={20} /> 데이터 미리보기 (상위 5행)</h3>
@@ -261,7 +306,7 @@ function RegressionAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><BarChart2 size={20} /> 회귀선 및 산점도</h3>
             </div>
-            <div className="chart-container">
+            <div className="chart-container" style={{ height: '350px' }}>
               <Scatter 
                 options={{
                   maintainAspectRatio: false,
@@ -305,6 +350,47 @@ function RegressionAnalysis({ data, numCols }) {
                 <div className="metric-value">{model.reg.intercept.toFixed(4)}</div>
               </div>
             </div>
+          </div>
+
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><AlertCircle size={20} /> 잔차도 (Residual Plot)</h3>
+            </div>
+            <div className="chart-container" style={{ height: '250px' }}>
+              <Scatter 
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { x: { title: { display: true, text: '예측값 (Predicted)' } }, y: { title: { display: true, text: '잔차 (Residual)' } } }
+                }}
+                data={{
+                  datasets: [
+                    {
+                      type: 'line',
+                      label: '0 기준선',
+                      data: [
+                        { x: Math.min(...model.x.map(v => model.reg.predict(v))), y: 0 },
+                        { x: Math.max(...model.x.map(v => model.reg.predict(v))), y: 0 }
+                      ],
+                      borderColor: '#10b981',
+                      borderWidth: 2,
+                      borderDash: [5, 5],
+                      pointRadius: 0
+                    },
+                    {
+                      type: 'scatter',
+                      label: '잔차',
+                      data: model.x.map((xVal, i) => ({ 
+                        x: model.reg.predict(xVal), 
+                        y: model.y[i] - model.reg.predict(xVal) 
+                      })),
+                      backgroundColor: 'rgba(245, 158, 11, 0.6)'
+                    }
+                  ]
+                }}
+              />
+            </div>
+            <p style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>* 잔차가 0 기준선 주변에 무작위로 흩어져 있어야 회귀 모델이 적합하다고 판단합니다.</p>
           </div>
         </div>
       )}
