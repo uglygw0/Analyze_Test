@@ -218,7 +218,7 @@ function BasicStats({ data, columns, numCols }) {
           <div className="card-header">
             <h3><PieChart size={20} /> 변수 유형 분포</h3>
           </div>
-          <div className="chart-container" style={{ height: '250px' }}>
+          <div className="chart-container" style={{ height: '400px' }}>
             <Bar 
               options={{ maintainAspectRatio: false, indexAxis: 'y' }}
               data={{
@@ -237,7 +237,7 @@ function BasicStats({ data, columns, numCols }) {
           <div className="card-header">
             <h3><BarChart2 size={20} /> 변수별 결측치 (Missing Values)</h3>
           </div>
-          <div className="chart-container" style={{ height: '250px' }}>
+          <div className="chart-container" style={{ height: '400px' }}>
             <Bar 
               options={{ maintainAspectRatio: false }}
               data={{
@@ -328,7 +328,7 @@ function RegressionAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><BarChart2 size={20} /> 회귀선 및 산점도</h3>
             </div>
-            <div className="chart-container" style={{ height: '350px' }}>
+            <div className="chart-container" style={{ height: '500px' }}>
               <Scatter 
                 options={{
                   maintainAspectRatio: false,
@@ -378,7 +378,7 @@ function RegressionAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><AlertCircle size={20} /> 잔차도 (Residual Plot)</h3>
             </div>
-            <div className="chart-container" style={{ height: '250px' }}>
+            <div className="chart-container" style={{ height: '400px' }}>
               <Scatter 
                 options={{
                   maintainAspectRatio: false,
@@ -702,7 +702,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><Network size={20} /> 실제값 vs 예측값 Comparison</h3>
             </div>
-            <div className="chart-container" style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: '450px' }}>
               <Scatter 
                 options={{ 
                   maintainAspectRatio: false,
@@ -739,7 +739,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><AlertCircle size={20} /> 잔차 분석 (Residual Analysis)</h3>
             </div>
-            <div className="chart-container" style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: '450px' }}>
               <Scatter 
                 options={{ 
                   maintainAspectRatio: false,
@@ -782,7 +782,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             {method === 'pca' ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 {model.featureInfo.components.map((comp, idx) => (
-                  <div key={idx} style={{ height: '250px' }}>
+                  <div key={idx} style={{ height: '400px' }}>
                     <h4 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>{comp.label} (설명력: {(model.featureInfo.explainedVariance[idx] * 100).toFixed(1)}%)</h4>
                     <Bar 
                       options={{ maintainAspectRatio: false, indexAxis: 'y' }}
@@ -799,7 +799,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
                 ))}
               </div>
             ) : (
-              <div className="chart-container" style={{ height: '300px' }}>
+              <div className="chart-container" style={{ height: '450px' }}>
                 <Bar 
                   options={{ maintainAspectRatio: false, indexAxis: 'y' }}
                   data={{
@@ -890,7 +890,7 @@ function LogisticAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><Network size={20} /> ROC Curve (Mock)</h3>
             </div>
-            <div className="chart-container" style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: '450px' }}>
               <Line 
                 options={{ maintainAspectRatio: false, scales: { x: { min: 0, max: 1, title: { display: true, text: 'False Positive Rate' } }, y: { min: 0, max: 1, title: { display: true, text: 'True Positive Rate' } } } }}
                 data={{
@@ -1138,7 +1138,7 @@ function KMeansAnalysis({ data, numCols }) {
             <div className="card-header">
               <h3><BarChart2 size={20} /> 군집별 데이터 개수 (Cluster Sizes)</h3>
             </div>
-            <div className="chart-container" style={{ height: '250px' }}>
+            <div className="chart-container" style={{ height: '400px' }}>
               <Bar 
                 options={{ maintainAspectRatio: false }}
                 data={{
@@ -1190,7 +1190,7 @@ function DecisionTreeAnalysis() {
           <div className="card-header">
             <h3><BarChart2 size={20} /> 변수 중요도 (Feature Importance - Mock)</h3>
           </div>
-          <div className="chart-container" style={{ height: '250px' }}>
+          <div className="chart-container" style={{ height: '400px' }}>
             <Bar 
               options={{ maintainAspectRatio: false }}
               data={{
@@ -1227,7 +1227,7 @@ function RandomForestAnalysis({ numCols }) {
             <div className="card-header">
               <h3><Layers size={20} /> 변수 중요도 (Feature Importance)</h3>
             </div>
-            <div className="chart-container" style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: '450px' }}>
               <Bar 
                 options={{ maintainAspectRatio: false, indexAxis: 'y' }}
                 data={{
@@ -1247,7 +1247,7 @@ function RandomForestAnalysis({ numCols }) {
             <div className="card-header">
               <h3><TrendingUp size={20} /> OOB (Out-of-Bag) Error 추이 (Mock)</h3>
             </div>
-            <div className="chart-container" style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: '450px' }}>
               <Line 
                 options={{ maintainAspectRatio: false, scales: { x: { title: { display: true, text: '트리의 수 (Number of Trees)' } }, y: { title: { display: true, text: '오차율 (Error Rate)' } } } }}
                 data={{
