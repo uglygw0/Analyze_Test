@@ -472,7 +472,21 @@ function MultipleRegressionAnalysis({ data, numCols }) {
         });
 
         if (allX.length < 5) {
-          alert("데이터가 너무 적습니다 (최소 5행 필요).");
+          alert("데이터가 너무 적습니다 (최소 5행 필요). 현재 유효 데이터: " + allX.length + "행");
+          setLoading(false);
+          return;
+        }
+
+        // Check for constant columns (Zero variance)
+        const constantCols = [];
+        xVars.forEach((col, idx) => {
+          const vals = allX.map(r => r[idx]);
+          const unique = new Set(vals);
+          if (unique.size <= 1) constantCols.push(col);
+        });
+
+        if (constantCols.length > 0) {
+          alert(`분석 불가: 다음 변수들의 값이 모두 동일(분산 0)합니다: ${constantCols.join(', ')}. 이 변수들을 제외하고 다시 시도해 주세요.`);
           setLoading(false);
           return;
         }
@@ -612,7 +626,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
         });
       } catch (e) {
         console.error(e);
-        alert("분석 중 오류가 발생했습니다. 파라미터나 데이터를 확인해주세요.");
+        alert("분석 오류 상세: " + e.message + "\n\n데이터에 결측치나 계산 불가능한 값이 포함되어 있을 수 있습니다.");
       }
       setLoading(false);
     }, 500);
