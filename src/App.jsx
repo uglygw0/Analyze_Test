@@ -129,12 +129,12 @@ export default function App() {
             if (e.dataTransfer.files?.length) processFile(e.dataTransfer.files[0]);
           }}
         >
-          <input type="file" accept=".csv, .xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} />
           <UploadCloud className="upload-icon" size={32} />
           <div className="upload-text">
             <h3>파일 업로드</h3>
             <p>CSV, Excel 파일 드롭</p>
           </div>
+          <input type="file" accept=".csv, .xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} />
         </div>
 
         {data && (
