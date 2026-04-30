@@ -578,13 +578,24 @@ function MultipleRegressionAnalysis({ data, numCols }) {
 
           // PCA Loadings (상위 성분에 대해서만 표시)
           const loadings = pca.getLoadings().to2DArray();
+          const explainedVariance = pca.getExplainedVariance();
+          const cumulativeVariance = pca.getCumulativeVariance();
+          
           featureInfo = {
             type: 'pca',
             components: loadings.slice(0, actualComponents).map((comp, i) => ({
               label: `PC${i+1}`,
               contributions: comp.map((val, j) => ({ col: xVars[j], val }))
             })),
-            explainedVariance: pca.getExplainedVariance().slice(0, actualComponents)
+            explainedVariance: explainedVariance.slice(0, actualComponents),
+            fullExplainedVariance: explainedVariance,
+            cumulativeVariance: cumulativeVariance,
+            // PC1-PC2 Distribution data for training set
+            distribution: xTrainPcaSlice.map((row, i) => ({
+              x: row[0],
+              y: row[1] || 0,
+              label: `Sample ${i+1}`
+            }))
           };
         }
         else if (method === 'pls') {
