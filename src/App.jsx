@@ -518,6 +518,8 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           const identity = Matrix.eye(XTX.rows);
           identity.set(0, 0, 0); // Don't regularize intercept
           const lambdaI = identity.mul(lambda);
+          
+          // Regularized inverse
           const weights = XTX.add(lambdaI).inverse().mmul(XT).mmul(Y);
           
           predictor = (x) => {
@@ -534,15 +536,18 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           }).sort((a,b) => b.impact - a.impact);
         }
         else if (method === 'lasso') {
-          const reg = new LassoRegression(xTrain, yTrain, { lambda: lambda });
-          predictor = (x) => reg.predict(x);
+          // Lasso expects 2D array for y
+          const reg = new LassoRegression(xTrain, yTrain.map(y => [y]), { lambda: lambda });
+          predictor = (x) => reg.predict([x])[0][0];
+          
           featureInfo = xVars.map((col, idx) => {
-            const coef = reg.weights[idx];
-            return { col, impact: Math.abs(coef), rawCoef: coef }; // Lasso weights are already regularized
+            const coef = reg.weights[idx][0];
+            return { col, impact: Math.abs(coef), rawCoef: coef };
           }).sort((a,b) => b.impact - a.impact);
         }
         else if (method === 'pca') {
-          const pca = new PCA(xTrain, { nComponents: Math.min(nComponents, xVars.length) });
+          const actualComponents = Math.min(nComponents, xVars.length, xTrain.length - 1);
+          const pca = new PCA(xTrain, { nComponents: actualComponents });
           const xTrainPca = pca.predict(xTrain).toArray();
           const reg = new MultivariateLinearRegression(xTrainPca, yTrain.map(y => [y]));
           
@@ -551,10 +556,11 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             return reg.predict(xPca)[0];
           };
 
-          // PCA Loadings/Comparison
+          // PCA Loadings
+          const loadings = pca.getLoadings().toArray();
           featureInfo = {
             type: 'pca',
-            components: pca.getLoadings().toArray().map((comp, i) => ({
+            components: loadings.map((comp, i) => ({
               label: `PC${i+1}`,
               contributions: comp.map((val, j) => ({ col: xVars[j], val }))
             })),
@@ -562,8 +568,12 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           };
         }
         else if (method === 'pls') {
-          const pls = new PLS(xTrain, yTrain.map(y => [y]), { nComponents: Math.min(nComponents, xVars.length) });
-          predictor = (x) => pls.predict([x])[0][0];
+          const actualComponents = Math.min(nComponents, xVars.length, xTrain.length - 1);
+          const pls = new PLS(xTrain, yTrain.map(y => [y]), { nComponents: actualComponents });
+          predictor = (x) => {
+            const res = pls.predict([x]);
+            return Array.isArray(res[0]) ? res[0][0] : res[0];
+          };
           
           // Get coefficients by predicting on unit vectors (proxy for importance)
           const meanX = xVars.map((_, idx) => xTrain.reduce((s, r) => s + r[idx], 0) / xTrain.length);
