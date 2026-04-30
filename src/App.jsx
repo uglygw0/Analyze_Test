@@ -128,7 +128,6 @@ export default function App() {
             setIsDragOver(false);
             if (e.dataTransfer.files?.length) processFile(e.dataTransfer.files[0]);
           }}
-          onClick={() => fileInputRef.current?.click()}
         >
           <input type="file" accept=".csv, .xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} />
           <UploadCloud className="upload-icon" size={32} />
