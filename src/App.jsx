@@ -577,7 +577,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           };
 
           // PCA Loadings (상위 성분에 대해서만 표시)
-          const loadings = pca.getLoadings().toArray();
+          const loadings = pca.getLoadings().to2DArray();
           featureInfo = {
             type: 'pca',
             components: loadings.slice(0, actualComponents).map((comp, i) => ({
