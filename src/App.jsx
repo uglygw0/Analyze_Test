@@ -812,10 +812,71 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             </div>
           </div>
 
+          {method === 'pca' && (
+            <>
+              <div className="result-card">
+                <div className="card-header">
+                  <h3><TrendingUp size={20} /> Scree Plot (설명력 추이)</h3>
+                </div>
+                <div className="chart-container" style={{ height: '400px' }}>
+                  <Line 
+                    options={{
+                      maintainAspectRatio: false,
+                      scales: { y: { beginAtZero: true, max: 1, ticks: { callback: v => (v * 100).toFixed(0) + '%' } } }
+                    }}
+                    data={{
+                      labels: model.featureInfo.fullExplainedVariance.map((_, i) => `PC${i+1}`),
+                      datasets: [
+                        {
+                          label: '개별 설명력',
+                          data: model.featureInfo.fullExplainedVariance,
+                          borderColor: '#6366f1',
+                          backgroundColor: '#6366f1',
+                          type: 'bar'
+                        },
+                        {
+                          label: '누적 설명력',
+                          data: model.featureInfo.cumulativeVariance,
+                          borderColor: '#ec4899',
+                          tension: 0.1,
+                          fill: false
+                        }
+                      ]
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="result-card">
+                <div className="card-header">
+                  <h3><PieChart size={20} /> PCA Distribution (PC1 vs PC2)</h3>
+                </div>
+                <div className="chart-container" style={{ height: '400px' }}>
+                  <Scatter 
+                    options={{
+                      maintainAspectRatio: false,
+                      scales: { 
+                        x: { title: { display: true, text: 'Principal Component 1' } },
+                        y: { title: { display: true, text: 'Principal Component 2' } }
+                      }
+                    }}
+                    data={{
+                      datasets: [{
+                        label: 'Samples',
+                        data: model.featureInfo.distribution,
+                        backgroundColor: 'rgba(99, 102, 241, 0.6)'
+                      }]
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="result-card full-width">
             <div className="card-header">
               <h3><BarChart2 size={20} /> 
-                {method === 'pca' ? '주성분 분석 (PCA Contributions)' : 
+                {method === 'pca' ? '주성분 분석 (PCA Feature Loadings)' : 
                  method === 'pls' ? '변수 중요도 (PLS Importance)' : 
                  '변수 영향도 (Feature Impact)'}
               </h3>
