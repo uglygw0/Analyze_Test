@@ -463,8 +463,10 @@ function MultipleRegressionAnalysis({ data, numCols }) {
         const allX = [];
         const allY = [];
         data.forEach(row => {
-          let valid = typeof row[yVar] === 'number';
-          xVars.forEach(col => { if (typeof row[col] !== 'number') valid = false; });
+          let valid = Number.isFinite(row[yVar]);
+          xVars.forEach(col => { 
+            if (!Number.isFinite(row[col])) valid = false; 
+          });
           if (valid) {
             allY.push(row[yVar]);
             allX.push(xVars.map(col => row[col]));
