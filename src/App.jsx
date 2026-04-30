@@ -563,24 +563,28 @@ function MultipleRegressionAnalysis({ data, numCols }) {
         }
         else if (method === 'pca') {
           const actualComponents = Math.min(nComponents, xVars.length, xTrain.length - 1);
-          const pca = new PCA(xTrain, { nComponents: actualComponents });
-          const xTrainPca = pca.predict(xTrain).toArray();
-          const reg = new MultivariateLinearRegression(xTrainPca, yTrain.map(y => [y]));
+          const pca = new PCA(xTrain);
+          // 주성분 결과에서 사용자가 지정한 개수만큼만 슬라이싱하여 사용
+          const fullTrainPca = pca.predict(xTrain).to2DArray();
+          const xTrainPcaSlice = fullTrainPca.map(row => row.slice(0, actualComponents));
+          
+          const reg = new MultivariateLinearRegression(xTrainPcaSlice, yTrain.map(y => [y]));
           
           predictor = (x) => {
-            const xPca = pca.predict([x]).toArray()[0];
-            return reg.predict(xPca)[0];
+            const fullXPca = pca.predict([x]).to2DArray()[0];
+            const xPcaSlice = fullXPca.slice(0, actualComponents);
+            return reg.predict([xPcaSlice])[0];
           };
 
-          // PCA Loadings
+          // PCA Loadings (상위 성분에 대해서만 표시)
           const loadings = pca.getLoadings().toArray();
           featureInfo = {
             type: 'pca',
-            components: loadings.map((comp, i) => ({
+            components: loadings.slice(0, actualComponents).map((comp, i) => ({
               label: `PC${i+1}`,
               contributions: comp.map((val, j) => ({ col: xVars[j], val }))
             })),
-            explainedVariance: pca.getExplainedVariance()
+            explainedVariance: pca.getExplainedVariance().slice(0, actualComponents)
           };
         }
         else if (method === 'pls') {
