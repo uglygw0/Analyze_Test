@@ -81,8 +81,18 @@ export default function App() {
   const numericColumns = useMemo(() => {
     if (!data || !columns.length) return [];
     return columns.filter(col => {
-      const isNum = data.some(row => typeof row[col] === 'number');
-      return isNum;
+      const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== '');
+      if (values.length === 0) return false;
+      
+      // 모든 값이 숫자인지 확인
+      const isNumeric = values.every(v => typeof v === 'number');
+      if (!isNumeric) return false;
+
+      // 0 또는 1의 값만 가지는 경우 분류형 데이터로 간주하여 소거
+      const uniqueValues = Array.from(new Set(values));
+      const isBinary = uniqueValues.length <= 2 && uniqueValues.every(v => v === 0 || v === 1);
+      
+      return !isBinary;
     });
   }, [data, columns]);
 
