@@ -2,15 +2,28 @@ import React, { useState, useMemo, useRef } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { 
-  UploadCloud, FileSpreadsheet, Activity, BarChart2, 
-  TrendingUp, Layers, Network, PieChart, Database, 
-  Settings, CheckCircle2, AlertCircle, ChevronRight
+  UploadCloud, 
+  Database, 
+  BarChart2, 
+  PieChart, 
+  TrendingUp, 
+  Activity, 
+  Layers, 
+  FileSpreadsheet,
+  Network,
+  AlertCircle,
+  Settings,
+  Scissors
 } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
 import { Scatter, Line, Bar } from 'react-chartjs-2';
 import { SimpleLinearRegression } from 'ml-regression-simple-linear';
 import MultivariateLinearRegression from 'ml-regression-multivariate-linear';
 import { kmeans } from 'ml-kmeans';
+import { PCA } from 'ml-pca';
+import { PLS } from 'ml-pls';
+import { LassoRegression } from 'ml-regression-lasso';
+import { Matrix } from 'ml-matrix';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
@@ -401,94 +414,240 @@ function RegressionAnalysis({ data, numCols }) {
 function MultipleRegressionAnalysis({ data, numCols }) {
   const [yVar, setYVar] = useState(numCols[0] || '');
   const [xVars, setXVars] = useState([]);
+  const [method, setMethod] = useState('ols'); // ols, ridge, lasso, pca, pls
+  const [testSize, setTestSize] = useState(0.2);
+  const [lambda, setLambda] = useState(0.1);
+  const [nComponents, setNComponents] = useState(2);
   const [model, setModel] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const toggleXVar = (col) => {
     setXVars(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
   };
 
+  const calculateMetrics = (actual, predicted) => {
+    let ssTotal = 0;
+    let ssRes = 0;
+    let mae = 0;
+    const yMean = actual.reduce((a, b) => a + b, 0) / actual.length;
+    
+    actual.forEach((val, i) => {
+      ssTotal += Math.pow(val - yMean, 2);
+      ssRes += Math.pow(val - predicted[i], 2);
+      mae += Math.abs(val - predicted[i]);
+    });
+
+    const r2 = ssTotal === 0 ? 0 : 1 - (ssRes / ssTotal);
+    const mse = ssRes / actual.length;
+    const rmse = Math.sqrt(mse);
+    mae = mae / actual.length;
+
+    return { r2, mse, rmse, mae };
+  };
+
   const runAnalysis = () => {
     if (!yVar || xVars.length === 0) return;
-    const x = []; const y = [];
-    data.forEach(row => {
-      let valid = typeof row[yVar] === 'number';
-      xVars.forEach(col => { if (typeof row[col] !== 'number') valid = false; });
-      if (valid) {
-        y.push([row[yVar]]);
-        x.push(xVars.map(col => row[col]));
-      }
-    });
+    setLoading(true);
     
-    if (x.length > 0) {
+    setTimeout(() => {
       try {
-        const regression = new MultivariateLinearRegression(x, y);
-        
-        // Calculate Actual vs Predicted & R2
-        const actualVsPredicted = [];
-        let ssTotal = 0;
-        let ssRes = 0;
-        const yMean = y.reduce((a, b) => a + b[0], 0) / y.length;
-        let minY = Infinity, maxY = -Infinity;
-
-        x.forEach((xRow, i) => {
-          const actualY = y[i][0];
-          const predictedY = regression.predict(xRow)[0];
-          actualVsPredicted.push({ x: actualY, y: predictedY });
-          
-          ssTotal += Math.pow(actualY - yMean, 2);
-          ssRes += Math.pow(actualY - predictedY, 2);
-          
-          if (actualY < minY) minY = actualY;
-          if (actualY > maxY) maxY = actualY;
+        const allX = [];
+        const allY = [];
+        data.forEach(row => {
+          let valid = typeof row[yVar] === 'number';
+          xVars.forEach(col => { if (typeof row[col] !== 'number') valid = false; });
+          if (valid) {
+            allY.push(row[yVar]);
+            allX.push(xVars.map(col => row[col]));
+          }
         });
 
-        const r2 = ssTotal === 0 ? 0 : 1 - (ssRes / ssTotal);
+        if (allX.length < 5) {
+          alert("데이터가 너무 적습니다 (최소 5행 필요).");
+          setLoading(false);
+          return;
+        }
 
-        // Calculate Variable Impact (Standardized Coefficients proxy = Coef * StdDev)
-        const impacts = [];
-        xVars.forEach((col, idx) => {
-          const vals = x.map(r => r[idx]);
-          const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-          const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
-          const stdDev = Math.sqrt(variance);
-          const coef = regression.weights[idx + 1][0]; // weights[0] is intercept
-          impacts.push({ col, impact: Math.abs(coef * stdDev), rawCoef: coef });
-        });
+        // Train/Test Split
+        const indices = Array.from({length: allX.length}, (_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
 
-        // Sort by impact
-        impacts.sort((a, b) => b.impact - a.impact);
+        const trainCount = Math.floor(allX.length * (1 - testSize));
+        const trainIndices = indices.slice(0, trainCount);
+        const testIndices = indices.slice(trainCount);
 
-        setModel({ 
-          weights: regression.weights, 
-          xVars, 
-          actualVsPredicted,
-          r2,
-          impacts,
-          minY,
-          maxY
+        const xTrain = trainIndices.map(i => allX[i]);
+        const yTrain = trainIndices.map(i => allY[i]);
+        const xTest = testIndices.map(i => allX[i]);
+        const yTest = testIndices.map(i => allY[i]);
+
+        let predictor, trainPredicted, testPredicted, featureInfo = null;
+
+        if (method === 'ols') {
+          const reg = new MultivariateLinearRegression(xTrain, yTrain.map(y => [y]));
+          predictor = (x) => reg.predict(x)[0];
+          // Standardized coefficients proxy
+          featureInfo = xVars.map((col, idx) => {
+            const vals = xTrain.map(r => r[idx]);
+            const stdDev = Math.sqrt(vals.reduce((a, b) => a + Math.pow(b - (vals.reduce((s,v)=>s+v,0)/vals.length), 2), 0) / vals.length);
+            const coef = reg.weights[idx + 1][0];
+            return { col, impact: Math.abs(coef * stdDev), rawCoef: coef };
+          }).sort((a,b) => b.impact - a.impact);
+        } 
+        else if (method === 'ridge') {
+          const X = new Matrix(xTrain);
+          const Y = new Matrix(yTrain.map(y => [y]));
+          // Add intercept
+          const XWithIntercept = Matrix.ones(X.rows, X.columns + 1);
+          XWithIntercept.setSubMatrix(X, 0, 1);
+          
+          const XT = XWithIntercept.transpose();
+          const XTX = XT.mmul(XWithIntercept);
+          const identity = Matrix.eye(XTX.rows);
+          identity.set(0, 0, 0); // Don't regularize intercept
+          const lambdaI = identity.mul(lambda);
+          const weights = XTX.add(lambdaI).inverse().mmul(XT).mmul(Y);
+          
+          predictor = (x) => {
+            let sum = weights.get(0, 0);
+            x.forEach((val, i) => sum += weights.get(i + 1, 0) * val);
+            return sum;
+          };
+
+          featureInfo = xVars.map((col, idx) => {
+            const vals = xTrain.map(r => r[idx]);
+            const stdDev = Math.sqrt(vals.reduce((a, b) => a + Math.pow(b - (vals.reduce((s,v)=>s+v,0)/vals.length), 2), 0) / vals.length);
+            const coef = weights.get(idx + 1, 0);
+            return { col, impact: Math.abs(coef * stdDev), rawCoef: coef };
+          }).sort((a,b) => b.impact - a.impact);
+        }
+        else if (method === 'lasso') {
+          const reg = new LassoRegression(xTrain, yTrain, { lambda: lambda });
+          predictor = (x) => reg.predict(x);
+          featureInfo = xVars.map((col, idx) => {
+            const coef = reg.weights[idx];
+            return { col, impact: Math.abs(coef), rawCoef: coef }; // Lasso weights are already regularized
+          }).sort((a,b) => b.impact - a.impact);
+        }
+        else if (method === 'pca') {
+          const pca = new PCA(xTrain, { nComponents: Math.min(nComponents, xVars.length) });
+          const xTrainPca = pca.predict(xTrain).toArray();
+          const reg = new MultivariateLinearRegression(xTrainPca, yTrain.map(y => [y]));
+          
+          predictor = (x) => {
+            const xPca = pca.predict([x]).toArray()[0];
+            return reg.predict(xPca)[0];
+          };
+
+          // PCA Loadings/Comparison
+          featureInfo = {
+            type: 'pca',
+            components: pca.getLoadings().toArray().map((comp, i) => ({
+              label: `PC${i+1}`,
+              contributions: comp.map((val, j) => ({ col: xVars[j], val }))
+            })),
+            explainedVariance: pca.getExplainedVariance()
+          };
+        }
+        else if (method === 'pls') {
+          const pls = new PLS(xTrain, yTrain.map(y => [y]), { nComponents: Math.min(nComponents, xVars.length) });
+          predictor = (x) => pls.predict([x])[0][0];
+          
+          // Get coefficients by predicting on unit vectors (proxy for importance)
+          const meanX = xVars.map((_, idx) => xTrain.reduce((s, r) => s + r[idx], 0) / xTrain.length);
+          const basePred = predictor(meanX);
+          featureInfo = xVars.map((col, idx) => {
+            const perturbedX = [...meanX];
+            perturbedX[idx] += 1;
+            const diff = predictor(perturbedX) - basePred;
+            return { col, impact: Math.abs(diff), rawCoef: diff };
+          }).sort((a,b) => b.impact - a.impact);
+        }
+
+        trainPredicted = xTrain.map(x => predictor(x));
+        testPredicted = xTest.map(x => predictor(x));
+
+        const trainMetrics = calculateMetrics(yTrain, trainPredicted);
+        const testMetrics = calculateMetrics(yTest, testPredicted);
+
+        const trainResiduals = yTrain.map((y, i) => ({ predicted: trainPredicted[i], residual: y - trainPredicted[i] }));
+        const testResiduals = yTest.map((y, i) => ({ predicted: testPredicted[i], residual: y - testPredicted[i] }));
+
+        setModel({
+          method,
+          xVars,
+          trainMetrics,
+          testMetrics,
+          trainResiduals,
+          testResiduals,
+          featureInfo,
+          actualVsPredicted: {
+            train: yTrain.map((y, i) => ({ x: y, y: trainPredicted[i] })),
+            test: yTest.map((y, i) => ({ x: y, y: testPredicted[i] }))
+          },
+          minY: Math.min(...allY),
+          maxY: Math.max(...allY)
         });
       } catch (e) {
-        alert("다중 회귀분석 중 오류가 발생했습니다. 선형 대수 계산이 불가능한 데이터일 수 있습니다.");
+        console.error(e);
+        alert("분석 중 오류가 발생했습니다. 파라미터나 데이터를 확인해주세요.");
       }
-    }
+      setLoading(false);
+    }, 500);
   };
 
   return (
     <div className="fade-in">
       <div className="workspace-header">
-        <h2>다중 회귀분석 (Multiple Linear Regression)</h2>
-        <p>여러 개의 독립변수들이 하나의 종속변수에 미치는 영향을 분석합니다.</p>
+        <h2>고급 다중 회귀분석 (Advanced Multiple Regression)</h2>
+        <p>OLS, Ridge, Lasso, PCA/PLS 등 다양한 기법을 통한 정밀 분석을 수행합니다.</p>
       </div>
 
-      <div className="control-panel">
+      <div className="control-panel" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
         <div className="input-group">
-          <label>종속변수 (Y)</label>
+          <label><Database size={14} /> 종속변수 (Y)</label>
           <select value={yVar} onChange={e => setYVar(e.target.value)}>
             {numCols.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div className="input-group" style={{ flex: 2 }}>
-          <label>독립변수 (X들) - 여러 개 선택 가능</label>
+
+        <div className="input-group">
+          <label><Settings size={14} /> 분석 방법</label>
+          <select value={method} onChange={e => setMethod(e.target.value)}>
+            <option value="ols">일반 최소자승법 (OLS)</option>
+            <option value="ridge">릿지 회귀 (Ridge - L2)</option>
+            <option value="lasso">라쏘 회귀 (Lasso - L1)</option>
+            <option value="pca">PCA 기반 회귀 (Principal Component)</option>
+            <option value="pls">PLS 기반 회귀 (Partial Least Squares)</option>
+          </select>
+        </div>
+
+        <div className="input-group">
+          <label><Scissors size={14} /> 테스트 데이터 비율 ({Math.round(testSize * 100)}%)</label>
+          <input type="range" min="0.1" max="0.5" step="0.05" value={testSize} onChange={e => setTestSize(parseFloat(e.target.value))} />
+        </div>
+
+        {(method === 'ridge' || method === 'lasso') && (
+          <div className="input-group">
+            <label><Activity size={14} /> 규제 강도 (Lambda: {lambda})</label>
+            <input type="number" step="0.01" value={lambda} onChange={e => setLambda(parseFloat(e.target.value))} />
+          </div>
+        )}
+
+        {(method === 'pca' || method === 'pls') && (
+          <div className="input-group">
+            <label><Layers size={14} /> 주성분 개수 ({nComponents})</label>
+            <input type="number" min="1" max={xVars.length || 1} value={nComponents} onChange={e => setNComponents(parseInt(e.target.value))} />
+          </div>
+        )}
+      </div>
+
+      <div className="control-panel" style={{ marginTop: '10px' }}>
+        <div className="input-group" style={{ flex: 1 }}>
+          <label>독립변수 (X들) 선택</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: '#fff' }}>
             {numCols.filter(c => c !== yVar).map(c => (
               <label key={c} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', background: xVars.includes(c) ? '#eff6ff' : 'transparent', padding: '4px 8px', borderRadius: '4px' }}>
@@ -498,16 +657,41 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             ))}
           </div>
         </div>
-        <button className="btn-primary" onClick={runAnalysis} disabled={xVars.length === 0}>
-          <Layers size={18} /> 분석 실행
+        <button className="btn-primary" onClick={runAnalysis} disabled={xVars.length === 0 || loading} style={{ alignSelf: 'flex-end', height: '45px' }}>
+          {loading ? '분석 중...' : <><Layers size={18} /> 분석 실행</>}
         </button>
       </div>
 
       {model && (
         <div className="results-grid fade-in">
+          {/* Performance Comparison */}
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><TrendingUp size={20} /> 모델 성능 평가 (Train vs Test)</h3>
+            </div>
+            <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              <div className="metric-box">
+                <div className="metric-label">Train R²</div>
+                <div className="metric-value" style={{ color: '#6366f1' }}>{model.trainMetrics.r2.toFixed(4)}</div>
+              </div>
+              <div className="metric-box">
+                <div className="metric-label">Test R²</div>
+                <div className="metric-value" style={{ color: '#ec4899' }}>{model.testMetrics.r2.toFixed(4)}</div>
+              </div>
+              <div className="metric-box">
+                <div className="metric-label">Test RMSE</div>
+                <div className="metric-value">{model.testMetrics.rmse.toFixed(4)}</div>
+              </div>
+              <div className="metric-box">
+                <div className="metric-label">Test MAE</div>
+                <div className="metric-value">{model.testMetrics.mae.toFixed(4)}</div>
+              </div>
+            </div>
+          </div>
+
           <div className="result-card">
             <div className="card-header">
-              <h3><TrendingUp size={20} /> 실제값 vs 예측값 (모델 적합도)</h3>
+              <h3><Network size={20} /> 실제값 vs 예측값 Comparison</h3>
             </div>
             <div className="chart-container" style={{ height: '300px' }}>
               <Scatter 
@@ -519,52 +703,112 @@ function MultipleRegressionAnalysis({ data, numCols }) {
                   datasets: [
                     {
                       type: 'line',
-                      label: '완전 일치 선 (y=x)',
+                      label: 'y=x',
                       data: [{ x: model.minY, y: model.minY }, { x: model.maxY, y: model.maxY }],
-                      borderColor: '#10b981',
-                      borderWidth: 2,
+                      borderColor: '#94a3b8',
+                      borderWidth: 1,
                       borderDash: [5, 5],
                       pointRadius: 0
                     },
                     {
-                      type: 'scatter',
-                      label: '데이터 포인트',
-                      data: model.actualVsPredicted,
-                      backgroundColor: 'rgba(99, 102, 241, 0.6)'
+                      label: '학습 데이터 (Train)',
+                      data: model.actualVsPredicted.train,
+                      backgroundColor: 'rgba(99, 102, 241, 0.5)'
+                    },
+                    {
+                      label: '평가 데이터 (Test)',
+                      data: model.actualVsPredicted.test,
+                      backgroundColor: 'rgba(236, 72, 153, 0.7)'
                     }
                   ]
                 }}
               />
             </div>
-            <div className="metrics-grid">
-              <div className="metric-box">
-                <div className="metric-label">설명력 (R²)</div>
-                <div className="metric-value">{model.r2.toFixed(4)}</div>
-              </div>
-            </div>
           </div>
 
           <div className="result-card">
             <div className="card-header">
-              <h3><BarChart2 size={20} /> 변수별 상대적 영향도 (Feature Impact)</h3>
+              <h3><AlertCircle size={20} /> 잔차 분석 (Residual Analysis)</h3>
             </div>
             <div className="chart-container" style={{ height: '300px' }}>
-              <Bar 
-                options={{ maintainAspectRatio: false, indexAxis: 'y' }}
+              <Scatter 
+                options={{ 
+                  maintainAspectRatio: false,
+                  scales: { x: { title: { display: true, text: '예측값 (Predicted)' } }, y: { title: { display: true, text: '잔차 (Residual)' } } }
+                }}
                 data={{
-                  labels: model.impacts.map(i => i.col),
-                  datasets: [{
-                    label: '상대적 영향도',
-                    data: model.impacts.map(i => i.impact),
-                    backgroundColor: model.impacts.map(i => i.rawCoef >= 0 ? 'rgba(99, 102, 241, 0.7)' : 'rgba(236, 72, 153, 0.7)'),
-                  }]
+                  datasets: [
+                    {
+                      type: 'line',
+                      label: 'Zero Line',
+                      data: [{ x: model.minY, y: 0 }, { x: model.maxY, y: 0 }],
+                      borderColor: '#10b981',
+                      borderWidth: 2,
+                      pointRadius: 0
+                    },
+                    {
+                      label: 'Train Residuals',
+                      data: model.trainResiduals.map(r => ({ x: r.predicted, y: r.residual })),
+                      backgroundColor: 'rgba(99, 102, 241, 0.4)'
+                    },
+                    {
+                      label: 'Test Residuals',
+                      data: model.testResiduals.map(r => ({ x: r.predicted, y: r.residual })),
+                      backgroundColor: 'rgba(245, 158, 11, 0.7)'
+                    }
+                  ]
                 }}
               />
             </div>
+          </div>
+
+          <div className="result-card full-width">
+            <div className="card-header">
+              <h3><BarChart2 size={20} /> 
+                {method === 'pca' ? '주성분 분석 (PCA Contributions)' : 
+                 method === 'pls' ? '변수 중요도 (PLS Importance)' : 
+                 '변수 영향도 (Feature Impact)'}
+              </h3>
+            </div>
+            {method === 'pca' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                {model.featureInfo.components.map((comp, idx) => (
+                  <div key={idx} style={{ height: '250px' }}>
+                    <h4 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>{comp.label} (설명력: {(model.featureInfo.explainedVariance[idx] * 100).toFixed(1)}%)</h4>
+                    <Bar 
+                      options={{ maintainAspectRatio: false, indexAxis: 'y' }}
+                      data={{
+                        labels: comp.contributions.map(c => c.col),
+                        datasets: [{
+                          label: '기여도',
+                          data: comp.contributions.map(c => c.val),
+                          backgroundColor: '#6366f1'
+                        }]
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="chart-container" style={{ height: '300px' }}>
+                <Bar 
+                  options={{ maintainAspectRatio: false, indexAxis: 'y' }}
+                  data={{
+                    labels: model.featureInfo.map(i => i.col),
+                    datasets: [{
+                      label: '영향도/중요도',
+                      data: model.featureInfo.map(i => i.impact),
+                      backgroundColor: model.featureInfo.map(i => i.rawCoef >= 0 ? 'rgba(99, 102, 241, 0.7)' : 'rgba(236, 72, 153, 0.7)'),
+                    }]
+                  }}
+                />
+              </div>
+            )}
             <p style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              * 영향도는 표준화된 계수(회귀계수 × 변수의 표준편차)의 절댓값을 기준으로 정렬되며, 
-              <span style={{ color: '#4f46e5', fontWeight: 'bold' }}>파란색은 양(+)의 영향</span>, 
-              <span style={{ color: '#db2777', fontWeight: 'bold' }}>분홍색은 음(-)의 영향</span>을 의미합니다.
+              * {method === 'ols' || method === 'ridge' ? '표준화된 계수 기반의 상대적 영향도입니다.' : 
+                 method === 'lasso' ? '절댓값 계수 기반의 변수 선택 결과입니다.' : 
+                 method === 'pca' ? '각 주성분에 대한 원래 변수들의 기여도(Loading)입니다.' : 
+                 'PLS 가중치 기반의 변수 중요도입니다.'}
             </p>
           </div>
         </div>
