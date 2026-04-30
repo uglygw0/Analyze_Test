@@ -346,7 +346,7 @@ body {
 
 .chart-container {
   flex: 1;
-  min-height: 300px;
+  min-height: 450px;
   position: relative;
   width: 100%;
 }
