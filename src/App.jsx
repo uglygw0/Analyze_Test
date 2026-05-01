@@ -1132,7 +1132,7 @@ function DendrogramAnalysis({ data, columns }) {
     };
   };
 
-  const treeData = buildTree(data || []);
+  const treeData = useMemo(() => buildTree(data || []), [data]);
 
   const renderTree = (node, depth = 0) => {
     if (node.type === 'leaf') {
