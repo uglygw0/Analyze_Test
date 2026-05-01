@@ -1107,68 +1107,103 @@ function TimeSeriesAnalysis({ data, numCols }) {
   );
 }
 
-function DendrogramAnalysis() {
+function DendrogramAnalysis({ data, columns }) {
+  // 첫 번째 열을 시리얼 이름으로 사용
+  const nameCol = columns[0];
+  const getName = (idx) => (data && data[idx] && data[idx][nameCol]) || `Serial_${idx}`;
+
   return (
     <div className="fade-in">
       <div className="workspace-header">
-        <h2>덴드로그램 (Hierarchical Clustering)</h2>
-        <p>계층적 군집분석을 통한 데이터들의 거리를 나무 형태로 표현합니다.</p>
+        <h2>심층 덴드로그램 (6-Level Hierarchical Clustering)</h2>
+        <p>6단계 계층 구조를 통해 {nameCol} 간의 미세한 유사성을 분석합니다.</p>
       </div>
       <div className="results-grid">
-        <div className="result-card full-width" style={{ padding: '40px', background: '#ffffff', minHeight: '600px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="result-card full-width" style={{ padding: '40px', background: '#ffffff', minHeight: '800px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowX: 'auto' }}>
           <div className="mock-tree-container">
             <div className="tree-level root">
-              <div className="tree-node root">Total Dataset</div>
-              <div className="tree-dist">Dist: 10.45</div>
+              <div className="tree-node root">Total Inventory</div>
+              <div className="tree-dist">Dist: 24.50</div>
+              
               <div className="tree-branch-complex">
-                {/* Left Major Branch */}
+                {/* Level 2: Left */}
                 <div className="tree-subtree">
-                  <div className="tree-node group">Group A (Dense)</div>
-                  <div className="tree-dist">Dist: 4.12</div>
+                  <div className="tree-node group">Main Category A</div>
+                  <div className="tree-dist">Dist: 12.10</div>
+                  
                   <div className="tree-branch-complex">
+                    {/* Level 3 */}
                     <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-A1</div>
-                      <div className="tree-dist">Dist: 1.25</div>
+                      <div className="tree-node subgroup">Sub-Group A1</div>
+                      <div className="tree-dist">Dist: 6.45</div>
+                      
                       <div className="tree-branch-complex">
-                        <div className="tree-leaf red">Obs_012</div>
-                        <div className="tree-leaf red">Obs_045</div>
+                        {/* Level 4 */}
+                        <div className="tree-subtree">
+                          <div className="tree-node segment">Segment A1-a</div>
+                          <div className="tree-dist">Dist: 3.20</div>
+                          
+                          <div className="tree-branch-complex">
+                            {/* Level 5 */}
+                            <div className="tree-subtree">
+                              <div className="tree-node unit">Unit X1</div>
+                              <div className="tree-dist">Dist: 1.10</div>
+                              <div className="tree-branch-complex">
+                                {/* Level 6: Leaves */}
+                                <div className="tree-leaf red">{getName(0)}</div>
+                                <div className="tree-leaf red">{getName(1)}</div>
+                              </div>
+                            </div>
+                            <div className="tree-subtree">
+                              <div className="tree-node unit">Unit X2</div>
+                              <div className="tree-dist">Dist: 0.95</div>
+                              <div className="tree-branch-complex">
+                                <div className="tree-leaf red">{getName(2)}</div>
+                                <div className="tree-leaf red">{getName(3)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Level 4: Right */}
+                        <div className="tree-subtree">
+                          <div className="tree-node segment">Segment A1-b</div>
+                          <div className="tree-dist">Dist: 2.85</div>
+                          <div className="tree-branch-complex">
+                            <div className="tree-leaf red">{getName(4)}</div>
+                            <div className="tree-leaf red">{getName(5)}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Level 3: Right */}
                     <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-A2</div>
-                      <div className="tree-dist">Dist: 1.88</div>
+                      <div className="tree-node subgroup">Sub-Group A2</div>
+                      <div className="tree-dist">Dist: 5.12</div>
                       <div className="tree-branch-complex">
-                        <div className="tree-leaf red">Obs_088</div>
-                        <div className="tree-leaf red">Obs_092</div>
+                        <div className="tree-leaf red">{getName(6)}</div>
+                        <div className="tree-leaf red">{getName(7)}</div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Right Major Branch */}
+                {/* Level 2: Right (Group B) */}
                 <div className="tree-subtree">
-                  <div className="tree-node group">Group B (Sparse)</div>
-                  <div className="tree-dist">Dist: 6.33</div>
+                  <div className="tree-node group">Main Category B</div>
+                  <div className="tree-dist">Dist: 15.30</div>
                   <div className="tree-branch-complex">
                     <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-B1</div>
-                      <div className="tree-dist">Dist: 2.15</div>
+                      <div className="tree-node subgroup">Sub-Group B1</div>
+                      <div className="tree-dist">Dist: 8.22</div>
                       <div className="tree-branch-complex">
                         <div className="tree-subtree">
-                          <div className="tree-leaf blue">Obs_023</div>
-                          <div className="tree-leaf blue">Obs_031</div>
-                        </div>
-                        <div className="tree-leaf blue">Obs_105</div>
-                      </div>
-                    </div>
-                    <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-B2</div>
-                      <div className="tree-dist">Dist: 3.42</div>
-                      <div className="tree-branch-complex">
-                        <div className="tree-leaf blue">Obs_019</div>
-                        <div className="tree-subtree">
-                           <div className="tree-leaf blue">Obs_055</div>
-                           <div className="tree-leaf blue">Obs_067</div>
+                          <div className="tree-node segment">Segment B1-z</div>
+                          <div className="tree-dist">Dist: 4.15</div>
+                          <div className="tree-branch-complex">
+                             <div className="tree-leaf blue">{getName(8)}</div>
+                             <div className="tree-leaf blue">{getName(9)}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
