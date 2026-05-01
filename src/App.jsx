@@ -600,7 +600,10 @@ function MultipleRegressionAnalysis({ data, numCols }) {
         }
         else if (method === 'pls') {
           const actualComponents = Math.min(nComponents, xVars.length, xTrain.length - 1);
-          const pls = new PLS(xTrain, yTrain.map(y => [y]), { nComponents: actualComponents });
+          // PLS는 생성자에서 학습하지 않으므로, 옵션 설정 후 train()을 별도로 호출해야 함
+          const pls = new PLS({ latentVectors: actualComponents, scale: true });
+          pls.train(xTrain, yTrain.map(y => [y]));
+          
           predictor = (x) => {
             const res = pls.predict([x]);
             return Array.isArray(res[0]) ? res[0][0] : res[0];
