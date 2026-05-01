@@ -97,7 +97,7 @@ export default function App() {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'csv') {
       Papa.parse(file, {
-        header: true, skipEmptyLines: true, dynamicTyping: true,
+        complete: (res) => {
           // CSV 데이터도 수치형 변환 시도
           const typedData = res.data.map(row => {
             const newRow = {};
