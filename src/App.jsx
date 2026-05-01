@@ -1431,7 +1431,10 @@ function KMeansAnalysis({ data, numCols }) {
                     })),
                     {
                       label: '기준점 (Centroids)',
-                      data: model.centroids.map(c => ({ x: c[0], y: c[1] })),
+                      data: model.centroids.map(c => ({ 
+                        x: Array.isArray(c) ? c[0] : (c.centroid ? c.centroid[0] : 0), 
+                        y: Array.isArray(c) ? c[1] : (c.centroid ? c.centroid[1] : 0) 
+                      })),
                       backgroundColor: '#18181b', // 매우 진한 회색/검정
                       pointStyle: 'star',
                       pointRadius: 10,
