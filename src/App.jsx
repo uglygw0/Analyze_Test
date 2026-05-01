@@ -1112,8 +1112,8 @@ function DendrogramAnalysis({ data, columns }) {
   
   // 데이터를 재귀적으로 나누어 트리 구조 생성 (최대 6단계)
   const buildTree = (items, depth = 0) => {
-    if (items.length <= 1 || depth >= 6) {
-      return { type: 'leaf', items };
+    if (!items || items.length <= 1 || depth >= 6) {
+      return { type: 'leaf', items: items || [] };
     }
 
     const mid = Math.ceil(items.length / 2);
