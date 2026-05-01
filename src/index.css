@@ -82,8 +82,10 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent; /* Fallback for some browsers */
 }
 
 /* Upload Area */
