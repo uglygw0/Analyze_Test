@@ -411,14 +411,14 @@ body {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* Advanced Dendrogram / Mock Tree styles */
+/* Restore and Optimize Dendrogram Lines & Layout */
 .mock-tree-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
-  width: 100%;
-  overflow-x: auto;
+  padding: 60px 20px;
+  width: max-content;
+  min-width: 100%;
 }
 
 .tree-level {
@@ -430,68 +430,87 @@ body {
 
 .tree-node {
   background: white;
-  border: 2px solid var(--primary-color);
-  padding: 8px 14px;
-  border-radius: 8px;
+  border: 1.5px solid var(--primary-color);
+  padding: 6px 12px;
+  border-radius: 6px;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   z-index: 2;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  max-width: 180px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: all 0.2s ease;
 }
 
-.tree-node:hover {
-  max-width: 400px;
-  z-index: 10;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.tree-node.root { background: #f1f5f9; border-color: #64748b; color: #334155; }
-.tree-node.group { background: #fff; border-color: var(--primary-color); }
-.tree-node.subgroup { background: #fff; border-color: #94a3b8; font-weight: 600; font-size: 0.8rem; }
+.tree-node.root { background: #f8fafc; border-color: #64748b; color: #334155; }
 
 .tree-dist {
-  font-size: 0.7rem;
-  color: #64748b;
-  margin-top: 6px;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 4px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
 }
 
 .tree-branch-complex {
   display: flex;
   justify-content: center;
-  gap: 50px; /* Wider gap for 6 levels */
-  margin-top: 30px;
+  gap: 30px;
+  margin-top: 40px;
   position: relative;
   width: 100%;
 }
 
-/* ... existing code for lines ... */
+/* Horizontal line connecting siblings */
+.tree-branch-complex::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: #cbd5e1;
+}
+
+/* Vertical line to parent */
+.tree-branch-complex::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: #cbd5e1;
+}
+
+.tree-subtree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* Vertical line from sibling line down to node */
+.tree-subtree::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: #cbd5e1;
+}
 
 .tree-leaf {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
   border: 1px solid;
-  margin-top: 12px;
+  margin-top: 15px;
   z-index: 2;
-  max-width: 140px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.tree-leaf:hover {
-  max-width: 300px;
-  z-index: 10;
-}
+.tree-leaf.red { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+.tree-leaf.blue { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
 
 .tree-leaf.red {
   background: #fee2e2;
