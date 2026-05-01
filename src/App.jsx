@@ -1281,18 +1281,39 @@ function KMeansAnalysis({ data, numCols }) {
   const [model, setModel] = useState(null);
 
   const runAnalysis = () => {
-    if (!xVar || !yVar) return;
+    if (!xVar || !yVar || !data) return;
+    
+    // 유효한 숫자 데이터만 추출
     const points = [];
     data.forEach(row => {
-      const x = Number(row[xVar]); const y = Number(row[yVar]);
-      if (!isNaN(x) && !isNaN(y)) points.push([x, y]);
+      const x = parseFloat(row[xVar]);
+      const y = parseFloat(row[yVar]);
+      if (!isNaN(x) && !isNaN(y)) {
+        points.push([x, y]);
+      }
     });
 
-    if (points.length > kValue) {
-      const ans = kmeans(points, kValue);
-      const clusterCounts = Array(kValue).fill(0);
-      ans.clusters.forEach(c => clusterCounts[c]++);
-      setModel({ points, clusters: ans.clusters, centroids: ans.centroids, k: kValue, clusterCounts });
+    if (points.length >= kValue) {
+      try {
+        const ans = kmeans(points, kValue);
+        const clusterCounts = Array(kValue).fill(0);
+        ans.clusters.forEach(c => {
+          if (c < kValue) clusterCounts[c]++;
+        });
+        
+        setModel({ 
+          points, 
+          clusters: ans.clusters, 
+          centroids: ans.centroids, 
+          k: kValue, 
+          clusterCounts 
+        });
+      } catch (error) {
+        console.error("K-Means Error:", error);
+        alert("군집 분석 중 오류가 발생했습니다. 데이터를 확인해주세요.");
+      }
+    } else {
+      alert(`데이터 포인트(${points.length}개)가 설정된 군집 수(${kValue}개)보다 적습니다.`);
     }
   };
 
