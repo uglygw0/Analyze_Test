@@ -1111,81 +1111,29 @@ function DendrogramAnalysis({ data, columns }) {
   const nameCol = columns[0];
   
   // 데이터를 재귀적으로 나누어 트리 구조 생성 (최대 6단계)
-  const buildTree = (items, depth = 0) => {
-    if (items.length <= 1 || depth >= 6) {
-      return { type: 'leaf', items };
-    }
-
-    const mid = Math.ceil(items.length / 2);
-    const left = items.slice(0, mid);
-    const right = items.slice(mid);
-
-    return {
-      type: 'branch',
-      dist: (10 - depth * 1.5).toFixed(2),
-      name: depth === 0 ? 'Total Inventory' : 
-            depth === 1 ? 'Main Category' : 
-            depth === 2 ? 'Sub-Group' :
-            depth === 3 ? 'Segment' :
-            depth === 4 ? 'Unit' : 'Cluster',
-      children: [buildTree(left, depth + 1), buildTree(right, depth + 1)]
-    };
-  };
-
-  const treeData = buildTree(data || []);
-
-  // 트리 데이터를 HTML로 재귀적 렌더링
-  const renderTree = (node, depth = 0) => {
-    if (node.type === 'leaf') {
-      return (
-        <div className="tree-leaf-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {node.items.map((item, idx) => (
-            <div key={idx} className={`tree-leaf ${depth % 2 === 0 ? 'red' : 'blue'}`} title={item[nameCol]}>
-              {item[nameCol] || `Serial_${idx}`}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="tree-subtree">
-        <div className="tree-node-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className={`tree-node ${depth === 0 ? 'root' : ''}`}>
-            {node.name} ({node.items?.length || 'Group'})
-          </div>
-          <div className="tree-dist">Dist: {node.dist}</div>
-        </div>
-        <div className="tree-branch-complex">
-          {node.children.map((child, idx) => (
-            <div key={idx} className="tree-child-wrapper">
-              {renderTree(child, depth + 1)}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
+  const buildTree = (items,   return (
     <div className="fade-in">
       <div className="workspace-header">
         <h2>전수 분석 덴드로그램 (Full-Scale 6-Level Tree)</h2>
         <p>전체 {data?.length || 0}개 시리얼을 6단계 계층 구조로 전수 분석합니다.</p>
       </div>
       <div className="results-grid">
-                      <div className="tree-node subgroup">Sub-Group A2</div>
-                      <div className="tree-dist">Dist: 5.12</div>
-                      <div className="tree-branch-complex">
-                        <div className="tree-leaf red">{getName(6)}</div>
-                        <div className="tree-leaf red">{getName(7)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Level 2: Right (Group B) */}
-                <div className="tree-subtree">
+        <div className="result-card full-width" style={{ padding: '20px', background: '#ffffff', minHeight: '900px', overflow: 'auto' }}>
+          <div className="mock-tree-container" style={{ width: 'max-content', minWidth: '100%' }}>
+            {renderTree(treeData)}
+          </div>
+          <div className="tree-legend" style={{ marginTop: '40px', display: 'flex', gap: '20px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '12px', height: '12px', background: '#fee2e2', border: '1px solid #ef4444' }}></div>
+              <span style={{ fontSize: '0.85rem' }}>High Similarity Cluster</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '12px', height: '12px', background: '#eff6ff', border: '1px solid #3b82f6' }}></div>
+              <span style={{ fontSize: '0.85rem' }}>Distinct Cluster</span>
+            </div>
+          </div>
+        </div>
+             <div className="tree-subtree">
                   <div className="tree-node group">Main Category B</div>
                   <div className="tree-dist">Dist: 15.30</div>
                   <div className="tree-branch-complex">
