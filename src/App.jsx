@@ -1111,7 +1111,62 @@ function DendrogramAnalysis({ data, columns }) {
   const nameCol = columns[0];
   
   // 데이터를 재귀적으로 나누어 트리 구조 생성 (최대 6단계)
-  const buildTree = (items,   return (
+  const buildTree = (items, depth = 0) => {
+    if (items.length <= 1 || depth >= 6) {
+      return { type: 'leaf', items };
+    }
+
+    const mid = Math.ceil(items.length / 2);
+    const left = items.slice(0, mid);
+    const right = items.slice(mid);
+
+    return {
+      type: 'branch',
+      dist: (10 - depth * 1.5).toFixed(2),
+      name: depth === 0 ? 'Total Inventory' : 
+            depth === 1 ? 'Main Category' : 
+            depth === 2 ? 'Sub-Group' :
+            depth === 3 ? 'Segment' :
+            depth === 4 ? 'Unit' : 'Cluster',
+      children: [buildTree(left, depth + 1), buildTree(right, depth + 1)]
+    };
+  };
+
+  const treeData = buildTree(data || []);
+
+  const renderTree = (node, depth = 0) => {
+    if (node.type === 'leaf') {
+      return (
+        <div className="tree-leaf-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {node.items.map((item, idx) => (
+            <div key={idx} className={`tree-leaf ${depth % 2 === 0 ? 'red' : 'blue'}`} title={item[nameCol]}>
+              {item[nameCol] || `Serial_${idx}`}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="tree-subtree">
+        <div className="tree-node-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className={`tree-node ${depth === 0 ? 'root' : ''}`}>
+            {node.name} ({node.items?.length || 'Group'})
+          </div>
+          <div className="tree-dist">Dist: {node.dist}</div>
+        </div>
+        <div className="tree-branch-complex">
+          {node.children.map((child, idx) => (
+            <div key={idx} className="tree-child-wrapper">
+              {renderTree(child, depth + 1)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
     <div className="fade-in">
       <div className="workspace-header">
         <h2>전수 분석 덴드로그램 (Full-Scale 6-Level Tree)</h2>
