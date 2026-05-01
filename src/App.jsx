@@ -540,10 +540,11 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           const XT = XWithIntercept.transpose();
           const XTX = XT.mmul(XWithIntercept);
           const identity = Matrix.eye(XTX.rows);
-          identity.set(0, 0, 0); // Don't regularize intercept
-          const lambdaI = identity.mul(lambda);
+          identity.set(0, 0, 0); // Intercept 부분은 규제하지 않음
+          const lambdaI = Matrix.mul(identity, lambda);
           
-          const weights = XTX.add(lambdaI).inverse().mmul(XT).mmul(Y);
+          // 역행렬 계산 (XTX + lambda*I)^-1 * XT * Y
+          const weights = Matrix.add(XTX, lambdaI).inverse().mmul(XT).mmul(Y);
           
           predictor = (x) => {
             const x_std = x.map((v, i) => (v - meanX[i]) / (stdX[i] === 0 ? 1 : stdX[i]));
