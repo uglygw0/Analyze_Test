@@ -112,7 +112,7 @@ export default function App() {
       case 'multiple-regression': return <MultipleRegressionAnalysis data={data} numCols={numericColumns} />;
       case 'logistic': return <LogisticAnalysis data={data} numCols={numericColumns} />;
       case 'timeseries': return <TimeSeriesAnalysis data={data} numCols={numericColumns} />;
-      case 'dendrogram': return <DendrogramAnalysis data={data} numCols={numericColumns} />;
+      case 'dendrogram': return <DendrogramAnalysis data={data} columns={columns} />;
       case 'kmeans': return <KMeansAnalysis data={data} numCols={numericColumns} />;
       case 'decision-tree': return <DecisionTreeAnalysis data={data} numCols={numericColumns} />;
       case 'random-forest': return <RandomForestAnalysis data={data} numCols={numericColumns} />;
