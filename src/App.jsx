@@ -93,8 +93,18 @@ export default function App() {
       Papa.parse(file, {
         header: true, skipEmptyLines: true, dynamicTyping: true,
         complete: (res) => {
-          setData(res.data);
-          if (res.data.length > 0) setColumns(Object.keys(res.data[0]));
+          // CSV 데이터도 수치형 변환 시도
+          const typedData = res.data.map(row => {
+            const newRow = {};
+            Object.keys(row).forEach(k => {
+              const val = row[k];
+              const cleaned = cleanNumericValue(val);
+              newRow[k] = !isNaN(cleaned) ? cleaned : val;
+            });
+            return newRow;
+          });
+          setData(typedData);
+          if (typedData.length > 0) setColumns(Object.keys(typedData[0]));
         }
       });
     } else if (['xlsx', 'xls'].includes(ext)) {
@@ -1339,8 +1349,8 @@ function KMeansAnalysis({ data, numCols }) {
     
     const points = [];
     data.forEach(row => {
-      const x = parseFloat(row[xVar]);
-      const y = parseFloat(row[yVar]);
+      const x = cleanNumericValue(row[xVar]);
+      const y = cleanNumericValue(row[yVar]);
       if (!isNaN(x) && !isNaN(y)) points.push([x, y]);
     });
 
