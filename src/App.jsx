@@ -606,7 +606,8 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           
           predictor = (x) => {
             const res = pls.predict([x]);
-            return Array.isArray(res[0]) ? res[0][0] : res[0];
+            // Matrix 객체인 경우 .get(0, 0) 사용, 배열인 경우 [0][0] 사용
+            return (typeof res.get === 'function') ? res.get(0, 0) : (Array.isArray(res[0]) ? res[0][0] : res[0]);
           };
           
           // Get coefficients by predicting on unit vectors (proxy for importance)
