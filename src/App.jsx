@@ -1115,27 +1115,78 @@ function DendrogramAnalysis() {
         <p>계층적 군집분석을 통한 데이터들의 거리를 나무 형태로 표현합니다.</p>
       </div>
       <div className="results-grid">
-        <div className="result-card full-width" style={{ alignItems: 'center' }}>
-          <div className="mock-tree">
-            <div className="tree-node">Cluster All</div>
-            <div className="tree-branch">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div className="tree-node">Group A</div>
-                <div className="tree-branch">
-                  <div className="tree-node" style={{ background: '#fef2f2', borderColor: '#ef4444' }}>A1</div>
-                  <div className="tree-node" style={{ background: '#fef2f2', borderColor: '#ef4444' }}>A2</div>
+        <div className="result-card full-width" style={{ padding: '40px', background: '#ffffff', minHeight: '600px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="mock-tree-container">
+            <div className="tree-level root">
+              <div className="tree-node root">Total Dataset</div>
+              <div className="tree-dist">Dist: 10.45</div>
+              <div className="tree-branch-complex">
+                {/* Left Major Branch */}
+                <div className="tree-subtree">
+                  <div className="tree-node group">Group A (Dense)</div>
+                  <div className="tree-dist">Dist: 4.12</div>
+                  <div className="tree-branch-complex">
+                    <div className="tree-subtree">
+                      <div className="tree-node subgroup">Sub-A1</div>
+                      <div className="tree-dist">Dist: 1.25</div>
+                      <div className="tree-branch-complex">
+                        <div className="tree-leaf red">Obs_012</div>
+                        <div className="tree-leaf red">Obs_045</div>
+                      </div>
+                    </div>
+                    <div className="tree-subtree">
+                      <div className="tree-node subgroup">Sub-A2</div>
+                      <div className="tree-dist">Dist: 1.88</div>
+                      <div className="tree-branch-complex">
+                        <div className="tree-leaf red">Obs_088</div>
+                        <div className="tree-leaf red">Obs_092</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div className="tree-node">Group B</div>
-                <div className="tree-branch">
-                  <div className="tree-node" style={{ background: '#eff6ff', borderColor: '#3b82f6' }}>B1</div>
-                  <div className="tree-node" style={{ background: '#eff6ff', borderColor: '#3b82f6' }}>B2</div>
+
+                {/* Right Major Branch */}
+                <div className="tree-subtree">
+                  <div className="tree-node group">Group B (Sparse)</div>
+                  <div className="tree-dist">Dist: 6.33</div>
+                  <div className="tree-branch-complex">
+                    <div className="tree-subtree">
+                      <div className="tree-node subgroup">Sub-B1</div>
+                      <div className="tree-dist">Dist: 2.15</div>
+                      <div className="tree-branch-complex">
+                        <div className="tree-subtree">
+                          <div className="tree-leaf blue">Obs_023</div>
+                          <div className="tree-leaf blue">Obs_031</div>
+                        </div>
+                        <div className="tree-leaf blue">Obs_105</div>
+                      </div>
+                    </div>
+                    <div className="tree-subtree">
+                      <div className="tree-node subgroup">Sub-B2</div>
+                      <div className="tree-dist">Dist: 3.42</div>
+                      <div className="tree-branch-complex">
+                        <div className="tree-leaf blue">Obs_019</div>
+                        <div className="tree-subtree">
+                           <div className="tree-leaf blue">Obs_055</div>
+                           <div className="tree-leaf blue">Obs_067</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <p style={{ marginTop: '20px', color: 'var(--text-muted)' }}>* 이는 데이터 구조를 나타내는 시각적 데모입니다.</p>
+          <div className="tree-legend" style={{ marginTop: '40px', display: 'flex', gap: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '12px', height: '12px', background: '#fee2e2', border: '1px solid #ef4444' }}></div>
+              <span style={{ fontSize: '0.85rem' }}>Cluster 1 (High Mean)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '12px', height: '12px', background: '#eff6ff', border: '1px solid #3b82f6' }}></div>
+              <span style={{ fontSize: '0.85rem' }}>Cluster 2 (Standard)</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
