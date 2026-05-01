@@ -171,11 +171,45 @@ export default function App() {
         </div>
       );
     }
-      case 'kmeans': return <KMeansAnalysis data={data} numCols={numericColumns} />;
-      case 'decision-tree': return <DecisionTreeAnalysis data={data} numCols={numericColumns} />;
-      case 'random-forest': return <RandomForestAnalysis data={data} numCols={numericColumns} />;
-      default: return <BasicStats data={data} columns={columns} numCols={numericColumns} />;
-    }
+    
+    // 데이터 진단용 요약 정보 (분석 도구 상단에 표시)
+    const dataDiagnostics = (
+      <div className="data-diagnostics" style={{ marginBottom: '20px', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#64748b' }}>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          <span><strong>파일명:</strong> {fileName}</span>
+          <span><strong>행 개수:</strong> {data.length.toLocaleString()}개</span>
+          <span><strong>전체 컬럼:</strong> {columns.length}개</span>
+          <span><strong>수치형 컬럼:</strong> {numericColumns.length}개</span>
+        </div>
+        {numericColumns.length < 2 && (
+          <div style={{ marginTop: '8px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <AlertCircle size={14} />
+            <span>수치형 데이터가 부족합니다. 데이터에 콤마나 단위가 포함되어 있는지 확인해주세요.</span>
+          </div>
+        )}
+      </div>
+    );
+
+    const getContent = () => {
+      switch (analysisType) {
+        case 'regression': return <RegressionAnalysis data={data} numCols={numericColumns} />;
+        case 'multiple-regression': return <MultipleRegressionAnalysis data={data} numCols={numericColumns} />;
+        case 'logistic': return <LogisticAnalysis data={data} numCols={numericColumns} />;
+        case 'timeseries': return <TimeSeriesAnalysis data={data} numCols={numericColumns} />;
+        case 'dendrogram': return <DendrogramAnalysis data={data} columns={columns} />;
+        case 'kmeans': return <KMeansAnalysis data={data} numCols={numericColumns} />;
+        case 'decision-tree': return <DecisionTreeAnalysis data={data} numCols={numericColumns} />;
+        case 'random-forest': return <RandomForestAnalysis data={data} numCols={numericColumns} />;
+        default: return <BasicStats data={data} columns={columns} numCols={numericColumns} />;
+      }
+    };
+
+    return (
+      <div className="workspace-content">
+        {dataDiagnostics}
+        {getContent()}
+      </div>
+    );
   };
 
   return (
