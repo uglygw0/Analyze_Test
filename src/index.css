@@ -411,19 +411,21 @@ body {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* Restore and Optimize Dendrogram Lines & Layout */
+/* Compact Horizontal Dendrogram (Left-to-Right) */
 .mock-tree-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* 좌에서 우로 */
   align-items: center;
-  padding: 60px 20px;
-  width: max-content;
-  min-width: 100%;
+  padding: 20px;
+  width: 100%;
+  height: 650px;
+  justify-content: flex-start;
+  overflow: hidden; /* 한 화면에 고정 */
 }
 
 .tree-level {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   position: relative;
 }
@@ -431,82 +433,88 @@ body {
 .tree-node {
   background: white;
   border: 1.5px solid var(--primary-color);
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   z-index: 2;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
 }
 
 .tree-node.root { background: #f8fafc; border-color: #64748b; color: #334155; }
 
 .tree-dist {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #94a3b8;
-  margin-top: 4px;
+  margin-left: 8px; /* 가로형이므로 옆으로 배치 */
   font-weight: 600;
+  position: absolute;
+  right: -55px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .tree-branch-complex {
   display: flex;
+  flex-direction: column; /* 자식들은 위아래로 나열 */
   justify-content: center;
-  gap: 30px;
-  margin-top: 40px;
+  gap: 12px;
+  margin-left: 60px; /* 부모-자식 간 가로 간격 */
   position: relative;
-  width: 100%;
 }
 
-/* Horizontal line connecting siblings */
+/* 가로 연결선 (부모 노드에서 오른쪽으로 뻗는 선) */
 .tree-branch-complex::before {
   content: '';
   position: absolute;
-  top: -20px;
-  left: 15%;
-  right: 15%;
+  left: -40px;
+  top: 50%;
+  width: 40px;
   height: 2px;
   background: #cbd5e1;
 }
 
-/* Vertical line to parent */
+/* 세로 연결선 (자식들을 묶어주는 세로선) */
 .tree-branch-complex::after {
   content: '';
   position: absolute;
-  top: -40px;
-  left: 50%;
+  left: -40px;
+  top: 10%;
+  bottom: 10%;
   width: 2px;
-  height: 20px;
   background: #cbd5e1;
 }
 
 .tree-subtree {
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* 노드와 그 자식들을 가로로 배치 */
   align-items: center;
   position: relative;
 }
 
-/* Vertical line from sibling line down to node */
+/* 개별 자식으로 들어가는 가로선 */
 .tree-subtree::before {
   content: '';
   position: absolute;
-  top: -20px;
-  left: 50%;
-  width: 2px;
-  height: 20px;
+  left: -20px;
+  top: 50%;
+  width: 20px;
+  height: 2px;
   background: #cbd5e1;
 }
 
 .tree-leaf {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
   border: 1px solid;
-  margin-top: 15px;
   z-index: 2;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  margin-left: 10px;
 }
 
 .tree-leaf.red { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
