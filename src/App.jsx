@@ -369,10 +369,10 @@ function RegressionAnalysis({ data, numCols }) {
                   datasets: [
                     {
                       type: 'line',
-                      label: `회귀선 (Y = ${model.reg.slope.toFixed(4)}X + ${model.reg.intercept.toFixed(4)})`,
+                      label: `회귀선 (Y = ${safeNum(model.reg.slope, 4)}X + ${safeNum(model.reg.intercept, 4)})`,
                       data: [
-                        { x: Math.min(...model.x), y: model.reg.predict(Math.min(...model.x)) },
-                        { x: Math.max(...model.x), y: model.reg.predict(Math.max(...model.x)) }
+                        { x: model.minX, y: model.reg.predict(model.minX) },
+                        { x: model.maxX, y: model.reg.predict(model.maxX) }
                       ],
                       borderColor: '#ec4899',
                       borderWidth: 2,
@@ -391,11 +391,11 @@ function RegressionAnalysis({ data, numCols }) {
             <div className="metrics-grid">
               <div className="metric-box">
                 <div className="metric-label">R² (설명력)</div>
-                <div className="metric-value">{(model.score.r2).toFixed(4)}</div>
+                <div className="metric-value">{safeNum(model.score.r2, 4)}</div>
               </div>
               <div className="metric-box">
                 <div className="metric-label">기울기 (Slope)</div>
-                <div className="metric-value">{model.reg.slope.toFixed(4)}</div>
+                <div className="metric-value">{safeNum(model.reg.slope, 4)}</div>
               </div>
               <div className="metric-box">
                 <div className="metric-label">절편 (Intercept)</div>
