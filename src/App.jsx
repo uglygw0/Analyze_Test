@@ -1237,6 +1237,39 @@ function DendrogramAnalysis() {
             * 위 해석은 덴드로그램 구조 분석을 통한 자동 생성 리포트 데모입니다.
           </div>
         </div>
+
+        {/* New: How to Read & Criteria Section */}
+        <div className="result-card full-width">
+          <div className="card-header">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Settings size={20} /> 덴드로그램 읽는 법 & 분류 기준 안내
+            </h3>
+          </div>
+          <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', padding: '20px' }}>
+            <div className="metric-box">
+              <div className="metric-label">Obs (Observation) 이란?</div>
+              <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '8px' }}>
+                업로드한 파일의 <strong>개별 행(Row)</strong>을 의미합니다. <br/>
+                <span style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>Obs_012 = 12번째 데이터</span>
+              </div>
+            </div>
+            <div className="metric-box">
+              <div className="metric-label">분류 기준 (Dist)</div>
+              <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '8px' }}>
+                선택한 변수들의 값을 종합하여 계산된 <strong>유클리드 거리</strong>입니다. <br/>
+                거리가 짧을수록(숫자가 작을수록) 성격이 비슷합니다.
+              </div>
+            </div>
+            <div className="metric-box">
+              <div className="metric-label">계층 구조의 의미</div>
+              <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '8px' }}>
+                위에서 아래로 갈수록 세밀한 차이를 분석합니다. <br/>
+                <strong>Group A/B</strong>: 거시적 차이 <br/>
+                <strong>Sub A1/A2</strong>: 미세한 수치 차이
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
