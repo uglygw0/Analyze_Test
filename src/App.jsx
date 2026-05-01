@@ -19,7 +19,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { Scatter, Line, Bar } from 'react-chartjs-2';
 import { SimpleLinearRegression } from 'ml-regression-simple-linear';
 import MultivariateLinearRegression from 'ml-regression-multivariate-linear';
-import { kmeans } from 'ml-kmeans';
+import kmeans from 'ml-kmeans';
 import { PCA } from 'ml-pca';
 import { PLS } from 'ml-pls';
 import { LassoRegression } from 'ml-regression-lasso';
