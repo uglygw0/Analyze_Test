@@ -85,7 +85,8 @@ body {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  color: transparent; /* Fallback for some browsers */
+  color: transparent;
+  /* Fallback for some browsers */
 }
 
 /* Upload Area */
@@ -102,7 +103,8 @@ body {
   margin-bottom: 24px;
 }
 
-.upload-zone:hover, .upload-zone.drag-over {
+.upload-zone:hover,
+.upload-zone.drag-over {
   border-color: var(--primary-color);
   background-color: #eff6ff;
 }
@@ -212,7 +214,8 @@ body {
   min-width: 180px;
 }
 
-.nav-select:hover, .nav-select:focus {
+.nav-select:hover,
+.nav-select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
@@ -267,7 +270,8 @@ body {
   color: var(--text-muted);
 }
 
-.input-group select, .input-group input {
+.input-group select,
+.input-group input {
   padding: 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
@@ -277,7 +281,8 @@ body {
   transition: border-color 0.2s;
 }
 
-.input-group select:focus, .input-group input:focus {
+.input-group select:focus,
+.input-group input:focus {
   border-color: var(--primary-color);
 }
 
@@ -405,8 +410,15 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-in {
@@ -416,13 +428,15 @@ body {
 /* Compact Horizontal Dendrogram (Left-to-Right) */
 .mock-tree-container {
   display: flex;
-  flex-direction: row; /* 좌에서 우로 */
+  flex-direction: row;
+  /* 좌에서 우로 */
   align-items: center;
   padding: 20px;
   width: 100%;
   height: 650px;
   justify-content: flex-start;
-  overflow: hidden; /* 한 화면에 고정 */
+  overflow: hidden;
+  /* 한 화면에 고정 */
 }
 
 .tree-level {
@@ -440,18 +454,23 @@ body {
   font-weight: 700;
   font-size: 0.7rem;
   z-index: 2;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   white-space: nowrap;
   min-width: 80px;
   text-align: center;
 }
 
-.tree-node.root { background: #f8fafc; border-color: #64748b; color: #334155; }
+.tree-node.root {
+  background: #f8fafc;
+  border-color: #64748b;
+  color: #334155;
+}
 
 .tree-dist {
   font-size: 0.6rem;
   color: #94a3b8;
-  margin-left: 8px; /* 가로형이므로 옆으로 배치 */
+  margin-left: 8px;
+  /* 가로형이므로 옆으로 배치 */
   font-weight: 600;
   position: absolute;
   right: -55px;
@@ -517,7 +536,7 @@ body {
   font-weight: 700;
   border: 1px solid;
   z-index: 2;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   margin-left: 10px;
 }
 
