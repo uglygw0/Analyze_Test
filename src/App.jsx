@@ -52,6 +52,11 @@ import { Matrix } from 'ml-matrix';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
+const safeNum = (val, precision = 2) => {
+  if (val === null || val === undefined || isNaN(Number(val))) return "0.00";
+  return Number(val).toFixed(precision);
+};
+
 export default function App() {
   const [data, setData] = useState(null);
   const [columns, setColumns] = useState([]);
