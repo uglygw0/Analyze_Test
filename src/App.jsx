@@ -546,7 +546,7 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           const lambdaI = Matrix.mul(identity, lambda);
           
           // 역행렬 계산 (XTX + lambda*I)^-1 * XT * Y
-          const weights = Matrix.add(XTX, lambdaI).inverse().mmul(XT).mmul(Y);
+          const weights = inverse(Matrix.add(XTX, lambdaI)).mmul(XT).mmul(Y);
           
           predictor = (x) => {
             const x_std = x.map((v, i) => (v - meanX[i]) / (stdX[i] === 0 ? 1 : stdX[i]));
