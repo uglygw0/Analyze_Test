@@ -1188,40 +1188,11 @@ function DendrogramAnalysis({ data, columns }) {
             </div>
           </div>
         </div>
-             <div className="tree-subtree">
-                  <div className="tree-node group">Main Category B</div>
-                  <div className="tree-dist">Dist: 15.30</div>
-                  <div className="tree-branch-complex">
-                    <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-Group B1</div>
-                      <div className="tree-dist">Dist: 8.22</div>
-                      <div className="tree-branch-complex">
-                        <div className="tree-subtree">
-                          <div className="tree-node segment">Segment B1-z</div>
-                          <div className="tree-dist">Dist: 4.15</div>
-                          <div className="tree-branch-complex">
-                             <div className="tree-leaf blue">{getName(8)}</div>
-                             <div className="tree-leaf blue">{getName(9)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="tree-legend" style={{ marginTop: '40px', display: 'flex', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '12px', height: '12px', background: '#fee2e2', border: '1px solid #ef4444' }}></div>
-              <span style={{ fontSize: '0.85rem' }}>Cluster 1 (High Similarity)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '12px', height: '12px', background: '#eff6ff', border: '1px solid #3b82f6' }}></div>
-              <span style={{ fontSize: '0.85rem' }}>Cluster 2 (Diverse/Outliers)</span>
-            </div>
-          </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
         {/* New Interpretation Section */}
         <div className="result-card full-width">
