@@ -1312,7 +1312,11 @@ function KMeansAnalysis({ data, numCols }) {
   const [model, setModel] = useState(null);
 
   const runAnalysis = () => {
-    if (!xVar || !yVar || !data || !kmeans) return;
+    console.log("xVar:", xVar, "yVar:", yVar, "kmeans:", kmeans, "typeof kmeans:", typeof kmeans);
+    if (!xVar || !yVar || !data || !kmeans) {
+       console.log("K-Means returning early because something is undefined");
+       return;
+    }
     
     const points = [];
     data.forEach(row => {
