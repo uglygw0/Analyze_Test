@@ -118,18 +118,16 @@ export default function App() {
       const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== '');
       if (values.length === 0) return false;
       
-      // 모든 값이 숫자인지 확인 (타입이 숫자거나 숫자로 변환 가능한 문자열)
-      const isNumeric = values.every(v => {
+      // 수치형 데이터 비율 계산 (최소 80% 이상이 숫자여야 함)
+      let numericCount = 0;
+      values.forEach(v => {
         const num = Number(v);
-        return (typeof v === 'number' && !isNaN(v)) || (typeof v === 'string' && v.trim() !== '' && !isNaN(num));
+        if ((typeof v === 'number' && !isNaN(v)) || (typeof v === 'string' && v.trim() !== '' && !isNaN(num))) {
+          numericCount++;
+        }
       });
-      if (!isNumeric) return false;
-
-      // 0 또는 1의 값만 가지는 경우 분류형 데이터로 간주하여 소거
-      const uniqueValues = Array.from(new Set(values.map(v => Number(v))));
-      const isBinary = uniqueValues.length <= 2 && uniqueValues.every(v => v === 0 || v === 1);
       
-      return !isBinary;
+      return (numericCount / values.length) >= 0.8;
     });
   }, [data, columns]);
 
