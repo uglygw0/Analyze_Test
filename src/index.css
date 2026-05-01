@@ -519,5 +519,14 @@ body {
   margin-left: 10px;
 }
 
-.tree-leaf.red { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
-.tree-leaf.blue { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+.tree-leaf.red {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.tree-leaf.blue {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
