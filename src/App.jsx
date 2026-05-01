@@ -768,19 +768,19 @@ function MultipleRegressionAnalysis({ data, numCols }) {
             <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               <div className="metric-box">
                 <div className="metric-label">Train R²</div>
-                <div className="metric-value" style={{ color: '#6366f1' }}>{model.trainMetrics.r2.toFixed(4)}</div>
+                <div className="metric-value" style={{ color: '#6366f1' }}>{safeNum(model.trainMetrics.r2, 4)}</div>
               </div>
               <div className="metric-box">
                 <div className="metric-label">Test R²</div>
-                <div className="metric-value" style={{ color: '#ec4899' }}>{model.testMetrics.r2.toFixed(4)}</div>
+                <div className="metric-value" style={{ color: '#ec4899' }}>{safeNum(model.testMetrics.r2, 4)}</div>
               </div>
               <div className="metric-box">
                 <div className="metric-label">Test RMSE</div>
-                <div className="metric-value">{model.testMetrics.rmse.toFixed(4)}</div>
+                <div className="metric-value">{safeNum(model.testMetrics.rmse, 4)}</div>
               </div>
               <div className="metric-box">
                 <div className="metric-label">Test MAE</div>
-                <div className="metric-value">{model.testMetrics.mae.toFixed(4)}</div>
+                <div className="metric-value">{safeNum(model.testMetrics.mae, 4)}</div>
               </div>
             </div>
           </div>
