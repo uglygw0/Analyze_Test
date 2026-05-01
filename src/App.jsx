@@ -1188,6 +1188,7 @@ function DendrogramAnalysis({ data, columns }) {
             </div>
           </div>
         </div>
+
         {/* New Interpretation Section */}
         <div className="result-card full-width">
           <div className="card-header">
@@ -1281,33 +1282,34 @@ function KMeansAnalysis({ data, numCols }) {
   const [model, setModel] = useState(null);
 
   const runAnalysis = () => {
-    if (!xVar || !yVar || !data) return;
+    if (!xVar || !yVar || !data || !kmeans) return;
     
-    // 유효한 숫자 데이터만 추출
     const points = [];
     data.forEach(row => {
       const x = parseFloat(row[xVar]);
       const y = parseFloat(row[yVar]);
-      if (!isNaN(x) && !isNaN(y)) {
-        points.push([x, y]);
-      }
+      if (!isNaN(x) && !isNaN(y)) points.push([x, y]);
     });
 
     if (points.length >= kValue) {
       try {
-        const ans = kmeans(points, kValue);
-        const clusterCounts = Array(kValue).fill(0);
-        ans.clusters.forEach(c => {
-          if (c < kValue) clusterCounts[c]++;
-        });
+        // ml-kmeans 라이브러리 버전에 따라 다른 호출 방식 대응
+        const ans = (typeof kmeans === 'function') ? kmeans(points, kValue) : kmeans.kmeans(points, kValue);
         
-        setModel({ 
-          points, 
-          clusters: ans.clusters, 
-          centroids: ans.centroids, 
-          k: kValue, 
-          clusterCounts 
-        });
+        if (ans && ans.clusters) {
+          const clusterCounts = Array(kValue).fill(0);
+          ans.clusters.forEach(c => {
+            if (c < kValue) clusterCounts[c]++;
+          });
+          
+          setModel({ 
+            points, 
+            clusters: ans.clusters, 
+            centroids: ans.centroids, 
+            k: kValue, 
+            clusterCounts 
+          });
+        }
       } catch (error) {
         console.error("K-Means Error:", error);
         alert("군집 분석 중 오류가 발생했습니다. 데이터를 확인해주세요.");
