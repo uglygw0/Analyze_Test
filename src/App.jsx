@@ -1188,12 +1188,6 @@ function DendrogramAnalysis({ data, columns }) {
             </div>
           </div>
         </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
         {/* New Interpretation Section */}
         <div className="result-card full-width">
           <div className="card-header">
