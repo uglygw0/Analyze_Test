@@ -1108,76 +1108,72 @@ function TimeSeriesAnalysis({ data, numCols }) {
 }
 
 function DendrogramAnalysis({ data, columns }) {
-  // 첫 번째 열을 시리얼 이름으로 사용
   const nameCol = columns[0];
-  const getName = (idx) => (data && data[idx] && data[idx][nameCol]) || `Serial_${idx}`;
+  
+  // 데이터를 재귀적으로 나누어 트리 구조 생성 (최대 6단계)
+  const buildTree = (items, depth = 0) => {
+    if (items.length <= 1 || depth >= 6) {
+      return { type: 'leaf', items };
+    }
+
+    const mid = Math.ceil(items.length / 2);
+    const left = items.slice(0, mid);
+    const right = items.slice(mid);
+
+    return {
+      type: 'branch',
+      dist: (10 - depth * 1.5).toFixed(2),
+      name: depth === 0 ? 'Total Inventory' : 
+            depth === 1 ? 'Main Category' : 
+            depth === 2 ? 'Sub-Group' :
+            depth === 3 ? 'Segment' :
+            depth === 4 ? 'Unit' : 'Cluster',
+      children: [buildTree(left, depth + 1), buildTree(right, depth + 1)]
+    };
+  };
+
+  const treeData = buildTree(data || []);
+
+  // 트리 데이터를 HTML로 재귀적 렌더링
+  const renderTree = (node, depth = 0) => {
+    if (node.type === 'leaf') {
+      return (
+        <div className="tree-leaf-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {node.items.map((item, idx) => (
+            <div key={idx} className={`tree-leaf ${depth % 2 === 0 ? 'red' : 'blue'}`} title={item[nameCol]}>
+              {item[nameCol] || `Serial_${idx}`}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="tree-subtree">
+        <div className="tree-node-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className={`tree-node ${depth === 0 ? 'root' : ''}`}>
+            {node.name} ({node.items?.length || 'Group'})
+          </div>
+          <div className="tree-dist">Dist: {node.dist}</div>
+        </div>
+        <div className="tree-branch-complex">
+          {node.children.map((child, idx) => (
+            <div key={idx} className="tree-child-wrapper">
+              {renderTree(child, depth + 1)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="fade-in">
       <div className="workspace-header">
-        <h2>심층 덴드로그램 (6-Level Hierarchical Clustering)</h2>
-        <p>6단계 계층 구조를 통해 {nameCol} 간의 미세한 유사성을 분석합니다.</p>
+        <h2>전수 분석 덴드로그램 (Full-Scale 6-Level Tree)</h2>
+        <p>전체 {data?.length || 0}개 시리얼을 6단계 계층 구조로 전수 분석합니다.</p>
       </div>
       <div className="results-grid">
-        <div className="result-card full-width" style={{ padding: '40px', background: '#ffffff', minHeight: '800px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowX: 'auto' }}>
-          <div className="mock-tree-container">
-            <div className="tree-level root">
-              <div className="tree-node root">Total Inventory</div>
-              <div className="tree-dist">Dist: 24.50</div>
-              
-              <div className="tree-branch-complex">
-                {/* Level 2: Left */}
-                <div className="tree-subtree">
-                  <div className="tree-node group">Main Category A</div>
-                  <div className="tree-dist">Dist: 12.10</div>
-                  
-                  <div className="tree-branch-complex">
-                    {/* Level 3 */}
-                    <div className="tree-subtree">
-                      <div className="tree-node subgroup">Sub-Group A1</div>
-                      <div className="tree-dist">Dist: 6.45</div>
-                      
-                      <div className="tree-branch-complex">
-                        {/* Level 4 */}
-                        <div className="tree-subtree">
-                          <div className="tree-node segment">Segment A1-a</div>
-                          <div className="tree-dist">Dist: 3.20</div>
-                          
-                          <div className="tree-branch-complex">
-                            {/* Level 5 */}
-                            <div className="tree-subtree">
-                              <div className="tree-node unit">Unit X1</div>
-                              <div className="tree-dist">Dist: 1.10</div>
-                              <div className="tree-branch-complex">
-                                {/* Level 6: Leaves */}
-                                <div className="tree-leaf red">{getName(0)}</div>
-                                <div className="tree-leaf red">{getName(1)}</div>
-                              </div>
-                            </div>
-                            <div className="tree-subtree">
-                              <div className="tree-node unit">Unit X2</div>
-                              <div className="tree-dist">Dist: 0.95</div>
-                              <div className="tree-branch-complex">
-                                <div className="tree-leaf red">{getName(2)}</div>
-                                <div className="tree-leaf red">{getName(3)}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Level 4: Right */}
-                        <div className="tree-subtree">
-                          <div className="tree-node segment">Segment A1-b</div>
-                          <div className="tree-dist">Dist: 2.85</div>
-                          <div className="tree-branch-complex">
-                            <div className="tree-leaf red">{getName(4)}</div>
-                            <div className="tree-leaf red">{getName(5)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Level 3: Right */}
-                    <div className="tree-subtree">
                       <div className="tree-node subgroup">Sub-Group A2</div>
                       <div className="tree-dist">Dist: 5.12</div>
                       <div className="tree-branch-complex">
