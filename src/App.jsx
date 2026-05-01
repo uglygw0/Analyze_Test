@@ -23,7 +23,7 @@ import { kmeans } from 'ml-kmeans';
 import { PCA } from 'ml-pca';
 import { PLS } from 'ml-pls';
 import { LassoRegression } from 'ml-regression-lasso';
-import { Matrix } from 'ml-matrix';
+import { Matrix, inverse, solve } from 'ml-matrix';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
