@@ -1152,7 +1152,7 @@ function DendrogramAnalysis({ data, columns }) {
 
     return {
       type: 'branch',
-      dist: (10 - depth * 1.5).toFixed(2),
+      dist: safeNum(10 - depth * 1.5, 2),
       name: depth === 0 ? 'Total Inventory' : 
             depth === 1 ? 'Main Category' : 
             depth === 2 ? 'Sub-Group' :
