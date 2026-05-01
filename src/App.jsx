@@ -1365,6 +1365,17 @@ function KMeansAnalysis({ data, numCols }) {
 
   const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
+  if (numCols.length < 2) {
+    return (
+      <div className="fade-in">
+        <div className="alert alert-warning" style={{ padding: '20px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', borderRadius: '8px', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AlertCircle size={20} />
+          <span>군집 분석을 수행하려면 최소 2개 이상의 수치형 변수가 필요합니다. (현재 {numCols.length}개)</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fade-in">
       <div className="workspace-header">
