@@ -61,6 +61,17 @@ const safeNum = (val, precision = 2) => {
   return Number(val).toFixed(precision);
 };
 
+const cleanNumericValue = (val) => {
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  if (val === null || val === undefined || val === '') return NaN;
+  if (typeof val !== 'string') return NaN;
+  
+  // 콤마, 원화기호, 달러기호, 퍼센트 등 제거 후 숫자로 변환 시도
+  const cleaned = val.replace(/[,\u20A9$%\s]/g, '').trim();
+  const num = Number(cleaned);
+  return isNaN(num) || cleaned === '' ? NaN : num;
+};
+
 export default function App() {
   const [data, setData] = useState(null);
   const [columns, setColumns] = useState([]);
@@ -98,7 +109,8 @@ export default function App() {
           const newRow = {};
           Object.keys(row).forEach(k => {
             const val = row[k];
-            newRow[k] = !isNaN(Number(val)) && val !== "" ? Number(val) : val;
+            const cleaned = cleanNumericValue(val);
+            newRow[k] = !isNaN(cleaned) ? cleaned : val;
           });
           return newRow;
         });
@@ -118,11 +130,10 @@ export default function App() {
       const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== '');
       if (values.length === 0) return false;
       
-      // 수치형 데이터 비율 계산 (최소 80% 이상이 숫자여야 함)
+      // 수치형 데이터 비율 계산
       let numericCount = 0;
       values.forEach(v => {
-        const num = Number(v);
-        if ((typeof v === 'number' && !isNaN(v)) || (typeof v === 'string' && v.trim() !== '' && !isNaN(num))) {
+        if (!isNaN(cleanNumericValue(v))) {
           numericCount++;
         }
       });
