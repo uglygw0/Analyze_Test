@@ -457,45 +457,47 @@ body {
   transform: translateY(-50%);
 }
 
+/* Precisely Connected Horizontal Dendrogram Lines */
 .tree-branch-complex {
   display: flex;
-  flex-direction: column; /* 자식들은 위아래로 나열 */
+  flex-direction: column;
   justify-content: center;
-  gap: 12px;
-  margin-left: 60px; /* 부모-자식 간 가로 간격 */
+  gap: 15px;
+  margin-left: 50px;
   position: relative;
+  padding-left: 20px;
 }
 
-/* 가로 연결선 (부모 노드에서 오른쪽으로 뻗는 선) */
+/* Parent to Vertical Line (Horizontal) */
 .tree-branch-complex::before {
   content: '';
   position: absolute;
-  left: -40px;
+  left: -20px;
   top: 50%;
-  width: 40px;
+  width: 20px;
   height: 2px;
   background: #cbd5e1;
 }
 
-/* 세로 연결선 (자식들을 묶어주는 세로선) */
+/* Vertical Splitter Line */
 .tree-branch-complex::after {
   content: '';
   position: absolute;
-  left: -40px;
-  top: 10%;
-  bottom: 10%;
+  left: -20px;
+  top: 10px;
+  bottom: 10px;
   width: 2px;
   background: #cbd5e1;
 }
 
 .tree-subtree {
   display: flex;
-  flex-direction: row; /* 노드와 그 자식들을 가로로 배치 */
+  flex-direction: row;
   align-items: center;
   position: relative;
 }
 
-/* 개별 자식으로 들어가는 가로선 */
+/* Vertical Line to Child (Horizontal) */
 .tree-subtree::before {
   content: '';
   position: absolute;
