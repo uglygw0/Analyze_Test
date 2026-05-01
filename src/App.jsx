@@ -530,8 +530,10 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           const meanX = X_raw.mean('column');
           const stdX = X_raw.standardDeviation('column');
           
-          // Standardize X
-          const X_std = X_raw.clone().subRowVector(meanX).divRowVector(stdX.map(s => s === 0 ? 1 : s));
+          // Standardize X (Array를 Matrix RowVector로 명시적 변환)
+          const X_std = X_raw.clone()
+            .subRowVector(Matrix.rowVector(meanX))
+            .divRowVector(Matrix.rowVector(stdX.map(s => s === 0 ? 1 : s)));
           
           // Add intercept
           const XWithIntercept = Matrix.ones(X_std.rows, X_std.columns + 1);
