@@ -539,29 +539,29 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           const XWithIntercept = Matrix.ones(X_std.rows, X_std.columns + 1);
           XWithIntercept.setSubMatrix(X_std, 0, 1);
           
-          const XT = XWithIntercept.transpose();
-          const XTX = XT.mmul(XWithIntercept);
-          const identity = Matrix.eye(XTX.rows);
-          identity.set(0, 0, 0); // Intercept 부분은 규제하지 않음
-          const lambdaI = Matrix.mul(identity, lambda);
-          
-          // 역행렬 계산 (XTX + lambda*I)^-1 * XT * Y
-          const weights = inverse(Matrix.add(XTX, lambdaI)).mmul(XT).mmul(Y);
-          
-          predictor = (x) => {
-            const x_std = x.map((v, i) => (v - meanX[i]) / (stdX[i] === 0 ? 1 : stdX[i]));
-            let sum = weights.get(0, 0);
-            x_std.forEach((val, i) => sum += weights.get(i + 1, 0) * val);
-            return sum;
-          };
+      const XT = XWithIntercept.transpose();
+      const XTX = XT.mmul(XWithIntercept);
+      const identity = Matrix.eye(XTX.rows);
+      identity.set(0, 0, 0); 
+      const lambdaI = Matrix.mul(identity, lambda);
+      
+      // Matrix.inverse 정적 메서드 사용
+      const weights = Matrix.inverse(Matrix.add(XTX, lambdaI)).mmul(XT).mmul(Y);
+      
+      predictor = (x) => {
+        const x_std = x.map((v, i) => (v - meanX[i]) / (stdX[i] === 0 ? 1 : stdX[i]));
+        let sum = weights.get(0, 0);
+        x_std.forEach((val, i) => sum += weights.get(i + 1, 0) * val);
+        return sum;
+      };
 
-          featureInfo = xVars.map((col, idx) => {
-            const coef = weights.get(idx + 1, 0);
-            return { col, impact: Math.abs(coef), rawCoef: coef };
-          }).sort((a,b) => b.impact - a.impact);
-        }
-        else if (method === 'lasso') {
-          const reg = new LassoRegression(xTrain, yTrain.map(y => [y]), { lambda: lambda });
+      featureInfo = xVars.map((col, idx) => {
+        const coef = weights.get(idx + 1, 0);
+        return { col, impact: Math.abs(coef), rawCoef: coef };
+      }).sort((a,b) => b.impact - a.impact);
+    }
+    else if (method === 'lasso') {
+      const reg = new LassoRegression(xTrain, yTrain.map(y => [y]), { lambda: lambda });
           predictor = (x) => {
             const res = reg.predict([x]);
             return Array.isArray(res) ? res[0][0] : res;
