@@ -1180,12 +1180,61 @@ function DendrogramAnalysis() {
           <div className="tree-legend" style={{ marginTop: '40px', display: 'flex', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '12px', height: '12px', background: '#fee2e2', border: '1px solid #ef4444' }}></div>
-              <span style={{ fontSize: '0.85rem' }}>Cluster 1 (High Mean)</span>
+              <span style={{ fontSize: '0.85rem' }}>Cluster 1 (High Similarity)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '12px', height: '12px', background: '#eff6ff', border: '1px solid #3b82f6' }}></div>
-              <span style={{ fontSize: '0.85rem' }}>Cluster 2 (Standard)</span>
+              <span style={{ fontSize: '0.85rem' }}>Cluster 2 (Diverse/Outliers)</span>
             </div>
+          </div>
+        </div>
+
+        {/* New Interpretation Section */}
+        <div className="result-card full-width">
+          <div className="card-header">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Activity size={20} /> 군집 해석 리포트 (Cluster Interpretation)
+            </h3>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '20px' }}>
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #ef4444' }}>
+              <h4 style={{ color: '#ef4444', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ padding: '2px 8px', background: '#fee2e2', borderRadius: '4px', fontSize: '0.75rem' }}>Group A</span>
+                고밀도 수렴형 군집
+              </h4>
+              <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: '1.6' }}>
+                이 그룹의 데이터들은 서로 매우 밀접한 거리를 유지하고 있습니다. 변수들의 값이 일정 범위 내에 조밀하게 모여 있어, 해당 데이터들은 <strong>높은 유사성</strong>을 가집니다. 일반적으로 표준적인 특성을 가진 샘플들이 이 군집에 속하게 됩니다.
+              </p>
+              <div style={{ marginTop: '16px', fontSize: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                  <span>평균 거리 (Intra-dist)</span> <span style={{ fontWeight: 'bold' }}>1.22</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span>데이터 구성비</span> <span style={{ fontWeight: 'bold' }}>42.5%</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #3b82f6' }}>
+              <h4 style={{ color: '#3b82f6', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ padding: '2px 8px', background: '#eff6ff', borderRadius: '4px', fontSize: '0.75rem' }}>Group B</span>
+                분산 확장형 군집
+              </h4>
+              <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: '1.6' }}>
+                이 그룹은 데이터 간의 거리가 상대적으로 멀고 넓게 퍼져 있습니다. <strong>독특한 변수 조합</strong>을 가진 데이터들이나, 표준에서 조금 벗어난 변칙값(Anomaly) 성격의 데이터들이 이 계층에 포함되는 경향이 있습니다.
+              </p>
+              <div style={{ marginTop: '16px', fontSize: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                  <span>평균 거리 (Intra-dist)</span> <span style={{ fontWeight: 'bold' }}>3.89</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span>데이터 구성비</span> <span style={{ fontWeight: 'bold' }}>57.5%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: '0 20px 20px', fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic' }}>
+            * 위 해석은 덴드로그램 구조 분석을 통한 자동 생성 리포트 데모입니다.
           </div>
         </div>
       </div>
