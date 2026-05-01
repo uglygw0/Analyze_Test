@@ -523,11 +523,19 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           }).sort((a,b) => b.impact - a.impact);
         } 
         else if (method === 'ridge') {
-          const X = new Matrix(xTrain);
+          // Ridge manual implementation with standardization
+          const X_raw = new Matrix(xTrain);
           const Y = new Matrix(yTrain.map(y => [y]));
+          
+          const meanX = X_raw.mean('column');
+          const stdX = X_raw.standardDeviation('column');
+          
+          // Standardize X
+          const X_std = X_raw.clone().subRowVector(meanX).divRowVector(stdX.map(s => s === 0 ? 1 : s));
+          
           // Add intercept
-          const XWithIntercept = Matrix.ones(X.rows, X.columns + 1);
-          XWithIntercept.setSubMatrix(X, 0, 1);
+          const XWithIntercept = Matrix.ones(X_std.rows, X_std.columns + 1);
+          XWithIntercept.setSubMatrix(X_std, 0, 1);
           
           const XT = XWithIntercept.transpose();
           const XTX = XT.mmul(XWithIntercept);
@@ -535,28 +543,29 @@ function MultipleRegressionAnalysis({ data, numCols }) {
           identity.set(0, 0, 0); // Don't regularize intercept
           const lambdaI = identity.mul(lambda);
           
-          // Regularized inverse
           const weights = XTX.add(lambdaI).inverse().mmul(XT).mmul(Y);
           
           predictor = (x) => {
+            const x_std = x.map((v, i) => (v - meanX[i]) / (stdX[i] === 0 ? 1 : stdX[i]));
             let sum = weights.get(0, 0);
-            x.forEach((val, i) => sum += weights.get(i + 1, 0) * val);
+            x_std.forEach((val, i) => sum += weights.get(i + 1, 0) * val);
             return sum;
           };
 
           featureInfo = xVars.map((col, idx) => {
-            const vals = xTrain.map(r => r[idx]);
-            const stdDev = Math.sqrt(vals.reduce((a, b) => a + Math.pow(b - (vals.reduce((s,v)=>s+v,0)/vals.length), 2), 0) / vals.length);
             const coef = weights.get(idx + 1, 0);
-            return { col, impact: Math.abs(coef * stdDev), rawCoef: coef };
+            return { col, impact: Math.abs(coef), rawCoef: coef };
           }).sort((a,b) => b.impact - a.impact);
         }
         else if (method === 'lasso') {
-          // Lasso expects 2D array for y
           const reg = new LassoRegression(xTrain, yTrain.map(y => [y]), { lambda: lambda });
-          predictor = (x) => reg.predict([x])[0][0];
+          predictor = (x) => {
+            const res = reg.predict([x]);
+            return Array.isArray(res) ? res[0][0] : res;
+          };
           
           featureInfo = xVars.map((col, idx) => {
+            // Lasso weights: [0...n-1] are coefs, [n] is intercept
             const coef = reg.weights[idx][0];
             return { col, impact: Math.abs(coef), rawCoef: coef };
           }).sort((a,b) => b.impact - a.impact);
