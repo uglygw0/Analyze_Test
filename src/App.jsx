@@ -1350,7 +1350,7 @@ function KMeansAnalysis({ data, numCols }) {
         }
       } catch (error) {
         console.error("K-Means Error:", error);
-        alert("군집 분석 중 오류가 발생했습니다. 데이터를 확인해주세요.");
+        alert("군집 분석 실패: " + error.message + "\n\n데이터 포인트의 고유값 수나 형태를 확인해주세요.");
       }
     } else {
       alert(`데이터 포인트(${points.length}개)가 설정된 군집 수(${kValue}개)보다 적습니다.`);
