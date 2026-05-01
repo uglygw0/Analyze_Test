@@ -118,12 +118,15 @@ export default function App() {
       const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== '');
       if (values.length === 0) return false;
       
-      // 모든 값이 숫자인지 확인
-      const isNumeric = values.every(v => typeof v === 'number');
+      // 모든 값이 숫자인지 확인 (타입이 숫자거나 숫자로 변환 가능한 문자열)
+      const isNumeric = values.every(v => {
+        const num = Number(v);
+        return (typeof v === 'number' && !isNaN(v)) || (typeof v === 'string' && v.trim() !== '' && !isNaN(num));
+      });
       if (!isNumeric) return false;
 
       // 0 또는 1의 값만 가지는 경우 분류형 데이터로 간주하여 소거
-      const uniqueValues = Array.from(new Set(values));
+      const uniqueValues = Array.from(new Set(values.map(v => Number(v))));
       const isBinary = uniqueValues.length <= 2 && uniqueValues.every(v => v === 0 || v === 1);
       
       return !isBinary;
@@ -1315,12 +1318,15 @@ function KMeansAnalysis({ data, numCols }) {
   const [kValue, setKValue] = useState(3);
   const [model, setModel] = useState(null);
 
-  const runAnalysis = () => {
-    console.log("xVar:", xVar, "yVar:", yVar, "kmeans:", kmeans, "typeof kmeans:", typeof kmeans);
-    if (!xVar || !yVar || !data || !kmeans) {
-       console.log("K-Means returning early because something is undefined");
-       return;
+  useEffect(() => {
+    if (numCols.length >= 2) {
+      if (!xVar) setXVar(numCols[0]);
+      if (!yVar) setYVar(numCols[1]);
     }
+  }, [numCols]);
+
+  const runAnalysis = () => {
+    if (!xVar || !yVar || !data || !kmeans) return;
     
     const points = [];
     data.forEach(row => {
