@@ -42,12 +42,16 @@ ChartJS.register(
   ArcElement
 );
 import { Scatter, Line, Bar } from 'react-chartjs-2';
-import { SimpleLinearRegression } from 'ml-regression-simple-linear';
+import * as mlSimpleLinear from 'ml-regression-simple-linear';
 import MultivariateLinearRegression from 'ml-regression-multivariate-linear';
-import { kmeans } from 'ml-kmeans';
+import * as mlKmeans from 'ml-kmeans';
 import { PCA } from 'ml-pca';
 import { PLS } from 'ml-pls';
-import { LassoRegression } from 'ml-regression-lasso';
+import * as mlLasso from 'ml-regression-lasso';
+
+const SimpleLinearRegression = mlSimpleLinear.SimpleLinearRegression || mlSimpleLinear.default || mlSimpleLinear;
+const kmeans = mlKmeans.kmeans || mlKmeans.default || mlKmeans;
+const LassoRegression = mlLasso.LassoRegression || mlLasso.default || mlLasso;
 import { Matrix } from 'ml-matrix';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
