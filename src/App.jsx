@@ -67,9 +67,15 @@ const cleanNumericValue = (val) => {
   if (typeof val !== 'string') return NaN;
   
   // 콤마, 원화기호, 달러기호, 퍼센트 등 제거 후 숫자로 변환 시도
-  const cleaned = val.replace(/[,\u20A9$%\s]/g, '').trim();
+  const cleaned = String(val).replace(/[,\u20A9$%\s]/g, '').trim();
   const num = Number(cleaned);
   return isNaN(num) || cleaned === '' ? NaN : num;
+};
+
+// 컬럼 키(헤더)에 포함된 보이지 않는 문자나 공백 제거
+const cleanKey = (key) => {
+  if (typeof key !== 'string') return key;
+  return key.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
 };
 
 export default function App() {
@@ -92,14 +98,14 @@ export default function App() {
     if (ext === 'csv') {
       Papa.parse(file, {
         header: true, skipEmptyLines: true, dynamicTyping: true,
-        complete: (res) => {
           // CSV 데이터도 수치형 변환 시도
           const typedData = res.data.map(row => {
             const newRow = {};
             Object.keys(row).forEach(k => {
+              const cleanedK = cleanKey(k);
               const val = row[k];
-              const cleaned = cleanNumericValue(val);
-              newRow[k] = !isNaN(cleaned) ? cleaned : val;
+              const cleanedV = cleanNumericValue(val);
+              newRow[cleanedK] = !isNaN(cleanedV) ? cleanedV : val;
             });
             return newRow;
           });
@@ -118,9 +124,10 @@ export default function App() {
         const typedData = parsed.map(row => {
           const newRow = {};
           Object.keys(row).forEach(k => {
+            const cleanedK = cleanKey(k);
             const val = row[k];
-            const cleaned = cleanNumericValue(val);
-            newRow[k] = !isNaN(cleaned) ? cleaned : val;
+            const cleanedV = cleanNumericValue(val);
+            newRow[cleanedK] = !isNaN(cleanedV) ? cleanedV : val;
           });
           return newRow;
         });
