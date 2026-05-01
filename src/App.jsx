@@ -104,7 +104,7 @@ export default function App() {
   };
 
   const numericColumns = useMemo(() => {
-    if (!data || !columns.length) return [];
+    if (!data || !Array.isArray(data) || data.length === 0 || !columns || columns.length === 0) return [];
     return columns.filter(col => {
       const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== '');
       if (values.length === 0) return false;
